@@ -1,0 +1,2281 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Management System</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --bg2: #10172a;
+      --panel: rgba(15, 23, 42, 0.86);
+      --panel2: #111827;
+      --muted: #94a3b8;
+      --text: #e5eefc;
+      --line: rgba(148, 163, 184, 0.18);
+      --accent: #7c3aed;
+      --accent2: #22c55e;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --info: #38bdf8;
+      --shadow: 0 20px 50px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    [data-theme="light"] {
+      --bg: #f5f7fb;
+      --bg2: #ffffff;
+      --panel: rgba(255,255,255,0.86);
+      --panel2: #ffffff;
+      --muted: #64748b;
+      --text: #0f172a;
+      --line: rgba(15, 23, 42, 0.10);
+      --shadow: 0 18px 40px rgba(15,23,42,.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(124,58,237,.18), transparent 30%),
+        radial-gradient(circle at left top, rgba(56,189,248,.14), transparent 25%),
+        linear-gradient(180deg, var(--bg), var(--bg2));
+      color: var(--text);
+      overflow-x: hidden;
+    }
+    a { color: inherit; }
+    button, input, select, textarea { font: inherit; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 280px 1fr; }
+    .sidebar {
+      padding: 20px;
+      border-left: 1px solid var(--line);
+      background: rgba(10, 15, 28, 0.35);
+      backdrop-filter: blur(20px);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+    .brand-badge {
+      width: 44px; height: 44px; border-radius: 14px;
+      display: grid; place-items: center; font-size: 22px;
+      background: linear-gradient(135deg, var(--accent), #0ea5e9);
+      color: white;
+    }
+    .brand h1 { margin: 0; font-size: 15px; }
+    .brand p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+    .nav { display: grid; gap: 8px; }
+    .nav button {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--text);
+      padding: 13px 14px;
+      border-radius: 16px;
+      text-align: right;
+      cursor: pointer;
+      transition: .2s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .nav button:hover, .nav button.active {
+      background: linear-gradient(135deg, rgba(124,58,237,.18), rgba(56,189,248,.14));
+      border-color: rgba(124,58,237,.25);
+      transform: translateY(-1px);
+    }
+    .sidebar-card {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .sidebar-card small, .hint { color: var(--muted); }
+    .main { padding: 18px; }
+    .topbar {
+      display: flex; gap: 12px; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+      position: sticky; top: 0; z-index: 30;
+      backdrop-filter: blur(18px);
+      background: linear-gradient(180deg, rgba(0,0,0,.10), transparent);
+      padding: 10px 0;
+    }
+    .search {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+    }
+    .search input {
+      width: 100%;
+      border: 0; outline: 0; background: transparent; color: var(--text);
+    }
+    .actions { display: flex; gap: 10px; }
+    .icon-btn {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      width: 46px; height: 46px;
+      border-radius: 16px;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+    }
+    .section { display: none; animation: fade .18s ease; }
+    .section.active { display: block; }
+    @keyframes fade { from { opacity: .5; transform: translateY(4px);} to { opacity: 1; transform: translateY(0);} }
+    .hero {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+      margin-bottom: 16px;
+    }
+    .hero h2 { margin: 0 0 6px; font-size: 26px; }
+    .hero p { margin: 0; color: var(--muted); }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 14px; border-radius: 999px;
+      background: linear-gradient(135deg, rgba(124,58,237,.18), rgba(34,197,94,.13));
+      border: 1px solid rgba(124,58,237,.22);
+      color: var(--text);
+      font-size: 13px;
+    }
+    .grid-cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .card {
+      padding: 16px;
+      border-radius: 20px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      min-height: 110px;
+    }
+    .stat-top { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .stat-label { color: var(--muted); font-size: 13px; }
+    .stat-value { font-size: 28px; font-weight: 800; margin-top: 12px; }
+    .stat-sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(148,163,184,.10);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .panel {
+      padding: 16px;
+      border-radius: 20px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+    }
+    .panel-head {
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      margin-bottom: 12px;
+    }
+    .panel h3 { margin: 0; font-size: 18px; }
+    .subtle { color: var(--muted); font-size: 13px; }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      border: 0;
+      border-radius: 14px;
+      padding: 11px 14px;
+      cursor: pointer;
+      color: white;
+      background: linear-gradient(135deg, var(--accent), #0ea5e9);
+      box-shadow: 0 10px 20px rgba(124,58,237,.25);
+      transition: .2s ease;
+    }
+    .btn.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+      box-shadow: none;
+    }
+    .btn.danger {
+      background: linear-gradient(135deg, var(--danger), #fb7185);
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn.active { outline: 2px solid rgba(124,58,237,.45); }
+    .table-wrap {
+      overflow:auto;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255,255,255,.01);
+      min-width: 980px;
+    }
+    th, td {
+      padding: 12px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+      vertical-align: top;
+      font-size: 14px;
+    }
+    th {
+      position: sticky; top: 0;
+      background: color-mix(in srgb, var(--panel2) 88%, transparent);
+      z-index: 2;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    tr:hover td { background: rgba(148,163,184,.05); }
+    .status {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      white-space: nowrap;
+    }
+    .ok { background: rgba(34,197,94,.12); color: #86efac; }
+    .bad { background: rgba(239,68,68,.12); color: #fca5a5; }
+    .warn { background: rgba(245,158,11,.12); color: #fcd34d; }
+    .info { background: rgba(56,189,248,.12); color: #7dd3fc; }
+    .muted { color: var(--muted); }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 12px;
+    }
+    .chart-box {
+      height: 300px;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(0,0,0,.08);
+      padding: 10px;
+      overflow: hidden;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    .field label { font-size: 12px; color: var(--muted); }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.02);
+      color: var(--text);
+      padding: 11px 12px;
+      outline: none;
+    }
+    .field textarea { min-height: 92px; resize: vertical; }
+    .tabs { display:flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .tab {
+      padding: 10px 14px; border-radius: 999px; border: 1px solid var(--line);
+      background: transparent; color: var(--text); cursor: pointer;
+    }
+    .tab.active { background: linear-gradient(135deg, rgba(124,58,237,.18), rgba(56,189,248,.14)); }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(2,6,23,.72);
+      display: none; align-items: center; justify-content: center; z-index: 50; padding: 18px;
+    }
+    .modal-backdrop.show { display:flex; }
+    .modal {
+      width: min(1100px, 100%);
+      max-height: 92vh;
+      overflow: auto;
+      background: var(--bg2);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    .modal-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom: 12px; }
+    .close {
+      background: transparent; color: var(--text); border: 1px solid var(--line);
+      width: 40px; height: 40px; border-radius: 12px; cursor: pointer;
+    }
+    .two-cols { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .mini-list { display:grid; gap: 10px; }
+    .mini-item {
+      padding: 12px; border: 1px solid var(--line); border-radius: 16px;
+      background: rgba(255,255,255,.02);
+      display:flex; justify-content:space-between; gap:10px; align-items:center;
+    }
+    .footer-note { color: var(--muted); font-size: 12px; margin-top: 10px; }
+    .login {
+      min-height: 100vh; display:grid; place-items:center; padding: 20px;
+    }
+    .login-card {
+      width: min(420px, 100%);
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .login-card h2 { margin: 0 0 6px; }
+    .login-card .field { margin-top: 12px; }
+    .toast {
+      position: fixed; left: 16px; bottom: 16px;
+      background: var(--panel2); color: var(--text);
+      border: 1px solid var(--line); border-radius: 16px;
+      padding: 12px 14px; box-shadow: var(--shadow);
+      opacity: 0; transform: translateY(10px);
+      transition: .2s ease; z-index: 60;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .print-area { display:none; }
+    .small-badge {
+      display:inline-flex; padding: 5px 9px; border-radius: 999px;
+      background: rgba(148,163,184,.10); border: 1px solid var(--line);
+      font-size: 12px; color: var(--muted);
+    }
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: relative; height: auto; border-left: 0; border-bottom: 1px solid var(--line); }
+      .grid-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .chart-grid, .two-cols, .form-grid { grid-template-columns: 1fr; }
+      .table-wrap table { min-width: 860px; }
+    }
+    @media (max-width: 640px) {
+      .grid-cards { grid-template-columns: 1fr; }
+      .hero { flex-direction: column; }
+      .topbar { flex-direction: column; align-items: stretch; }
+      .actions { justify-content: flex-start; }
+    }
+    @media print {
+      body { background: white; color: black; }
+      .sidebar, .topbar, .controls, .tabs, .btn, .icon-btn, .toast, .no-print { display:none !important; }
+      .app { display:block; }
+      .section { display:block !important; }
+      .panel, .card { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loginView" class="login">
+    <div class="login-card">
+      <div class="brand" style="margin-bottom:16px">
+        <div class="brand-badge">T</div>
+        <div>
+          <h1>Teacher Management System</h1>
+          <p>Local HTML Dashboard</p>
+        </div>
+      </div>
+      <h2>تسجيل الدخول</h2>
+      <p class="muted">بياناتك متزامنة أونلاين عبر Firebase.</p>
+      <div class="field"><label>البريد الإلكتروني</label><input id="loginUser" type="email" placeholder="you@example.com" autocomplete="username"></div>
+      <div class="field"><label>كلمة المرور</label><input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn" style="width:100%; margin-top:14px" id="loginBtn">دخول</button>
+      <p class="footer-note" id="loginHint">أول مرة تسجل بإيميل وباسورد جديدين هيتعمل لك حساب تلقائيًا.</p>
+    </div>
+  </div>
+
+  <div id="appView" class="app" style="display:none">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">T</div>
+        <div>
+          <h1>Teacher Management System</h1>
+          <p id="sidebarSub">Offline local app</p>
+        </div>
+      </div>
+
+      <div class="nav" id="nav">
+        <button class="active" data-page="dashboard">لوحة التحكم <span>⌂</span></button>
+        <button data-page="students">الطلاب <span>◫</span></button>
+        <button data-page="groups">المجموعات <span>◎</span></button>
+        <button data-page="lessons">الحصص <span>≣</span></button>
+        <button data-page="exams">الامتحانات <span>◌</span></button>
+        <button data-page="subscriptions">الاشتراكات <span>₪</span></button>
+        <button data-page="monthArchive">أرشيف الشهور <span>⏱</span></button>
+        <button data-page="reports">التقارير <span>⇪</span></button>
+        <button data-page="settings">الإعدادات <span>⚙</span></button>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="subtle">اختيار السنة الدراسية</div>
+        <div id="yearButtons" style="display:grid;gap:8px;margin-top:10px"></div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="chip">السنة الحالية: <strong id="currentYearLabel"></strong></div>
+        <div style="height:10px"></div>
+        <small>كل البيانات محفوظة محليًا داخل المتصفح.</small>
+      </div>
+      <div class="sidebar-card">
+        <small>Tip</small>
+        <div style="margin-top:6px">استخدم البحث بالأعلى بالاسم أو الكود أو الهاتف.</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="search">
+          <span>⌕</span>
+          <input id="globalSearch" placeholder="ابحث بالاسم أو كود الطالب أو رقم الهاتف..." />
+        </div>
+        <div class="actions">
+          <span class="icon-btn" id="fbTopStatus" title="حالة Firebase" style="display:flex;align-items:center;justify-content:center;font-size:16px">●</span>
+          <button class="icon-btn" id="toggleTheme" title="Theme">☾</button>
+          <button class="icon-btn" id="backupBtn" title="Backup">⭳</button>
+          <button class="icon-btn" id="logoutBtn" title="Logout">↩</button>
+        </div>
+      </div>
+
+      <section id="dashboard" class="section active">
+        <div class="hero">
+          <div>
+            <h2>لوحة التحكم</h2>
+            <p>نظرة سريعة على الطلاب، الحضور، الإيرادات، والامتحانات.</p>
+          </div>
+          <div class="pill">سريع • محلي • خفيف • Responsive</div>
+        </div>
+
+        <div class="grid-cards" id="dashboardCards"></div>
+
+        <div class="chart-grid">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>الإيرادات الشهرية</h3>
+                <div class="subtle">من الاشتراكات والدفعات المسجلة</div>
+              </div>
+              <span class="small-badge" id="monthlyRevenueLabel"></span>
+            </div>
+            <div class="chart-box" id="revenueChart"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>نسبة الحضور</h3>
+                <div class="subtle">حاضر / غائب / متأخر / بعذر</div>
+              </div>
+            </div>
+            <div class="chart-box" id="attendanceChart"></div>
+          </div>
+        </div>
+
+        <div class="chart-grid" style="margin-top:12px">
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>توزيع الطلاب حسب السنة</h3>
+                <div class="subtle">أولى / ثانية / ثالثة</div>
+              </div>
+            </div>
+            <div class="chart-box" id="yearsChart"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <h3>تطور متوسط الدرجات</h3>
+                <div class="subtle">آخر الامتحانات</div>
+              </div>
+            </div>
+            <div class="chart-box" id="gradesChart"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="students" class="section">
+        <div class="hero">
+          <div>
+            <h2>الطلاب</h2>
+            <p>إدارة ملفات الطلاب والوليّ الأمر والحضور والامتحانات والاشتراكات.</p>
+          </div>
+          <div class="controls no-print">
+            <button class="btn" id="addStudentBtn">+ طالب جديد</button>
+            <button class="btn secondary" id="exportStudentsBtn">تصدير CSV</button>
+            <button class="btn secondary" id="printAllQrBtn">طباعة QR لكل الطلاب</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>قائمة الطلاب</h3>
+              <div class="subtle">البحث والترتيب والتصفية متاحان.</div>
+            </div>
+            <div class="controls">
+              <select id="studentYearFilter">
+                <option value="all">كل السنوات</option>
+                <option value="y1">أولى ثانوي</option>
+                <option value="y2">ثانية ثانوي</option>
+                <option value="y3">ثالثة ثانوي</option>
+              </select>
+              <select id="studentGroupFilter"><option value="">كل المجموعات</option></select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-sort="code">الكود</th>
+                  <th data-sort="name">الاسم</th>
+                  <th data-sort="academicYearName">السنة</th>
+                  <th data-sort="groupName">المجموعة</th>
+                  <th data-sort="phone">الهاتف</th>
+                  <th>الحضور</th>
+                  <th>الاشتراك</th>
+                  <th>أوامر</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="groups" class="section">
+        <div class="hero">
+          <div>
+            <h2>المجموعات</h2>
+            <p>كل سنة مستقلة بمجموعاتها واشتراكها وعدد طلابها.</p>
+          </div>
+          <div class="controls no-print">
+            <button class="btn" id="addGroupBtn">+ مجموعة جديدة</button>
+          </div>
+        </div>
+        <div class="grid-cards" id="groupCards"></div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>كل المجموعات</h3>
+              <div class="subtle">اليوم، الوقت، الاشتراك الشهري، عدد الطلاب.</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الاسم</th>
+                  <th>السنة</th>
+                  <th>اليوم</th>
+                  <th>الوقت</th>
+                  <th>عدد الطلاب</th>
+                  <th>عدد الحصص</th>
+                  <th>الاشتراك</th>
+                  <th>أوامر</th>
+                </tr>
+              </thead>
+              <tbody id="groupsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="lessons" class="section">
+        <div class="hero">
+          <div>
+            <h2>الحصص</h2>
+            <p>إنشاء حصة وتسجيل الحضور لكل طالب داخل المجموعة نفسها.</p>
+          </div>
+          <div class="controls no-print">
+            <button class="btn" id="addLessonBtn">+ حصة جديدة</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>آخر الحصص</h3>
+              <div class="subtle">كل حصة يمكن فتحها وتعديل سجل الحضور الخاص بها.</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الاسم</th>
+                  <th>السنة</th>
+                  <th>المجموعة</th>
+                  <th>التاريخ</th>
+                  <th>الوقت</th>
+                  <th>عنوان الدرس</th>
+                  <th>الحضور</th>
+                  <th>أوامر</th>
+                </tr>
+              </thead>
+              <tbody id="lessonsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="exams" class="section">
+        <div class="hero">
+          <div>
+            <h2>الامتحانات</h2>
+            <p>إنشاء امتحان، إدخال الدرجات، وفتح صفحة تفصيلية لكل امتحان.</p>
+          </div>
+          <div class="controls no-print">
+            <button class="btn" id="addExamBtn">+ امتحان جديد</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>كل الامتحانات</h3>
+              <div class="subtle">اضغط على أي امتحان لعرض التفاصيل والتحليلات.</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الاسم</th>
+                  <th>السنة</th>
+                  <th>المجموعة</th>
+                  <th>التاريخ</th>
+                  <th>الدرجة النهائية</th>
+                  <th>عدد الطلاب</th>
+                  <th>المتوسط</th>
+                  <th>أوامر</th>
+                </tr>
+              </thead>
+              <tbody id="examsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="subscriptions" class="section">
+        <div class="hero">
+          <div>
+            <h2>الاشتراكات</h2>
+            <p>تتبع المدفوعات والمتأخرات والإيرادات حسب الشهر والسنة والمجموعة.</p>
+          </div>
+          <div class="controls no-print">
+            <button class="btn" id="addPaymentBtn">+ دفعه جديدة</button>
+            <button class="btn secondary" id="printRevenueBtn">طباعة تقرير</button>
+          </div>
+        </div>
+        <div class="grid-cards" id="subscriptionCards"></div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>سجل الاشتراكات</h3>
+              <div class="subtle">مدفوع / غير مدفوع / متأخر.</div>
+            </div>
+            <select id="subscriptionStatusFilter">
+              <option value="">كل الحالات</option>
+              <option value="paid">مدفوع</option>
+              <option value="unpaid">غير مدفوع</option>
+              <option value="late">متأخر</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الطالب</th>
+                  <th>السنة</th>
+                  <th>المجموعة</th>
+                  <th>الشهر</th>
+                  <th>المستحق</th>
+                  <th>المدفوع</th>
+                  <th>تاريخ الاستحقاق</th>
+                  <th>الحالة</th>
+                  <th>أوامر</th>
+                </tr>
+              </thead>
+              <tbody id="subscriptionsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="monthArchive" class="section">
+        <div class="hero">
+          <div>
+            <h2>أرشيف الشهور</h2>
+            <p>تقرير الشهور الماضية: حالة الدفع، المتأخرات، والإيرادات لكل شهر.</p>
+          </div>
+          <div class="controls no-print">
+            <button class="btn secondary" id="printArchiveBtn">طباعة التقرير</button>
+          </div>
+        </div>
+        <div class="grid-cards" id="archiveCards"></div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h3>الشهور السابقة</h3>
+              <div class="subtle">اضغط على أي شهر لعرض تقريره التفصيلي.</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>الشهر</th>
+                  <th>الطلاب</th>
+                  <th>المستحق</th>
+                  <th>المدفوع</th>
+                  <th>المتبقي</th>
+                  <th>مدفوع</th>
+                  <th>غير مدفوع</th>
+                  <th>متأخر</th>
+                  <th>الحصص/شهر</th>
+                  <th>أوامر</th>
+                </tr>
+              </thead>
+              <tbody id="archiveTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="reports" class="section">
+        <div class="hero">
+          <div>
+            <h2>التقارير</h2>
+            <p>تقرير طالب، مجموعة، سنة، حضور، غياب، اشتراكات، إيرادات، امتحانات، ومتفوقين.</p>
+          </div>
+          <div class="controls no-print">
+            <button class="btn secondary" id="printCurrentReportBtn">طباعة / حفظ PDF</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="tabs" id="reportTabs"></div>
+          <div id="reportContent"></div>
+        </div>
+      </section>
+
+      <section id="settings" class="section">
+        <div class="hero">
+          <div>
+            <h2>الإعدادات</h2>
+            <p>كلمة المرور، التبديل بين Dark/Light، القيم الافتراضية، والنسخ الاحتياطي.</p>
+          </div>
+        </div>
+        <div class="two-cols">
+          <div class="panel">
+            <h3>حساب الدخول</h3>
+            <div class="field"><label>اسم المستخدم</label><input id="settingsUser" disabled></div>
+            <div class="field"><label>كلمة المرور الجديدة</label><input id="newPass" type="password" placeholder="••••••••"></div>
+            <button class="btn" id="changePassBtn" style="margin-top:10px">تغيير كلمة المرور</button>
+          </div>
+          <div class="panel">
+            <h3>حالة الاتصال بـ Firebase</h3>
+            <p><span id="fbStatusDot" class="chip">●</span> <span id="fbStatusText" class="subtle">لسه مفحوصش</span></p>
+            <button class="btn secondary" id="testFbBtn">اختبار الاتصال الآن</button>
+            <p class="footer-note">بيبعت ويقرا قيمة تجريبية من Firestore عشان يتأكد إن الاتصال شغال فعلاً.</p>
+          </div>
+        </div>
+        <div class="two-cols">
+          <div class="panel">
+            <h3>المظهر والنسخ الاحتياطي</h3>
+            <div class="field">
+              <label>الوضع</label>
+              <select id="themeSelect">
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>سعر الاشتراك الافتراضي</label>
+              <input id="defaultFee" type="number" min="0">
+            </div>
+            <div class="controls" style="margin-top:10px">
+              <button class="btn secondary" id="exportJsonBtn">تصدير JSON</button>
+              <button class="btn secondary" id="importJsonBtn">استيراد JSON</button>
+              <input type="file" id="importFile" accept="application/json" hidden>
+            </div>
+            <p class="footer-note">يمكن استعادة كل البيانات من ملف JSON واحد.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="modalTitle">Modal</h3>
+          <div class="subtle" id="modalSubtitle"></div>
+        </div>
+        <button class="close" id="modalClose">✕</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('loginView').style.display = 'none';
+      document.getElementById('appView').style.display = 'none';
+      const warn = document.createElement('div');
+      warn.style.cssText = 'font-family:sans-serif;background:#111;color:#fff;padding:40px;direction:rtl;text-align:right;min-height:100vh';
+      warn.innerHTML = '<h2>لازم تشغل الموقع من سيرفر محلي</h2>' +
+        '<p>المتصفح بيمنع تحميل Firebase لما تفتح الملف مباشرة (file://).</p>' +
+        '<p>شغّل <code>run.bat</code> (ويندوز) أو <code>bash run.sh</code> (ماك/لينكس) في مجلد المشروع، وبعدين افتح:</p>' +
+        '<p><a style="color:#38bdf8" href="http://localhost:8000">http://localhost:8000</a></p>';
+      document.body.appendChild(warn);
+      throw new Error('Opened via file:// - stopping module load');
+    }
+  </script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+      createUserWithEmailAndPassword, signOut, updatePassword
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, getDocFromServer, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC5c2hi-EJUWtKjApwOjXq7ldfZzlALUFo",
+      authDomain: "hegazy-system.firebaseapp.com",
+      projectId: "hegazy-system",
+      storageBucket: "hegazy-system.firebasestorage.app",
+      messagingSenderId: "911629461593",
+      appId: "1:911629461593:web:620b2748e6338f9ce62948",
+      measurementId: "G-R73WZB1T6H"
+    };
+    const fbApp = initializeApp(firebaseConfig);
+    const auth = getAuth(fbApp);
+    const db = getFirestore(fbApp);
+
+    window.__fb = {
+      auth, db, doc, getDoc, setDoc, getDocFromServer, serverTimestamp,
+      onAuthStateChanged, signInWithEmailAndPassword,
+      createUserWithEmailAndPassword, signOut, updatePassword
+    };
+</script>
+
+<script type="module">
+(() => {
+  const seed = {
+    settings: { theme: 'dark', defaultFee: 250, currentYearId: 'y1', lessonsPerMonth: 4 },
+    academicYears: [
+      { id: 'yp1', label: 'أولى إعدادي', sort: 1 },
+      { id: 'yp2', label: 'ثانية إعدادي', sort: 2 },
+      { id: 'yp3', label: 'ثالثة إعدادي', sort: 3 },
+      { id: 'y1', label: 'أولى ثانوي', sort: 4 },
+      { id: 'y2', label: 'ثانية ثانوي', sort: 5 },
+      { id: 'y3', label: 'ثالثة ثانوي', sort: 6 }
+    ],
+    groups: [
+      { id: 'g1', academicYearId: 'y1', name: '1A', dayOfWeek: 'السبت', time: '04:00 PM', fee: 250, lessonCount: 4, notes: '' },
+      { id: 'g2', academicYearId: 'y2', name: '2B', dayOfWeek: 'الاثنين', time: '05:30 PM', fee: 300, lessonCount: 4, notes: '' },
+      { id: 'g3', academicYearId: 'y3', name: '3C', dayOfWeek: 'الأربعاء', time: '06:00 PM', fee: 350, lessonCount: 4, notes: '' }
+    ],
+    students: [
+      { id: 's1', academicYearId: 'y1', groupId: 'g1', code: 'ST-1001', name: 'Ahmed Ali', photoUrl: '', schoolName: 'Al-Azhar School', phone: '01011111111', birthDate: '2007-10-01', joinDate: '2025-09-01', address: 'Cairo', notes: '' },
+      { id: 's2', academicYearId: 'y1', groupId: 'g1', code: 'ST-1002', name: 'Mina Samir', photoUrl: '', schoolName: 'Al-Azhar School', phone: '01022222222', birthDate: '2007-02-14', joinDate: '2025-09-02', address: 'Giza', notes: '' },
+      { id: 's3', academicYearId: 'y2', groupId: 'g2', code: 'ST-2001', name: 'Youssef Hassan', photoUrl: '', schoolName: 'Other School', phone: '01033333333', birthDate: '2006-05-20', joinDate: '2025-09-10', address: 'Cairo', notes: '' },
+      { id: 's4', academicYearId: 'y3', groupId: 'g3', code: 'ST-3001', name: 'Omar Tarek', photoUrl: '', schoolName: 'Language School', phone: '01044444444', birthDate: '2005-12-08', joinDate: '2025-09-12', address: 'Alex', notes: 'Top student' }
+    ],
+    guardians: [
+      { id: 'p1', studentId: 's1', name: 'Ali Ahmed', relation: 'Father', phone: '01111111111', whatsapp: '01111111111', emergencyPhone: '01211111111', notes: '' },
+      { id: 'p2', studentId: 's2', name: 'Samir Mina', relation: 'Father', phone: '01122222222', whatsapp: '01122222222', emergencyPhone: '01222222222', notes: '' },
+      { id: 'p3', studentId: 's3', name: 'Hassan Youssef', relation: 'Father', phone: '01133333333', whatsapp: '01133333333', emergencyPhone: '01233333333', notes: '' },
+      { id: 'p4', studentId: 's4', name: 'Tarek Omar', relation: 'Father', phone: '01144444444', whatsapp: '01144444444', emergencyPhone: '01244444444', notes: '' }
+    ],
+    lessons: [
+      { id: 'l1', academicYearId: 'y1', groupId: 'g1', name: 'Lesson 1', date: '2026-07-01', time: '04:00 PM', title: 'Introduction', notes: '' },
+      { id: 'l2', academicYearId: 'y2', groupId: 'g2', name: 'Lesson 1', date: '2026-07-02', time: '05:30 PM', title: 'Vectors', notes: '' },
+      { id: 'l3', academicYearId: 'y3', groupId: 'g3', name: 'Lesson 1', date: '2026-07-03', time: '06:00 PM', title: 'Limits', notes: '' }
+    ],
+    attendance: [
+      { id: 'a1', lessonId: 'l1', studentId: 's1', status: 'present', notes: '' },
+      { id: 'a2', lessonId: 'l1', studentId: 's2', status: 'late', notes: '' },
+      { id: 'a3', lessonId: 'l2', studentId: 's3', status: 'present', notes: '' },
+      { id: 'a4', lessonId: 'l3', studentId: 's4', status: 'absent', notes: '' }
+    ],
+    subscriptions: [
+      { id: 'sub1', academicYearId: 'y1', studentId: 's1', groupId: 'g1', month: '2026-07', dueAmount: 250, paidAmount: 250, status: 'paid', dueDate: '2026-07-01', paidAt: '2026-07-03', paymentMethod: 'Cash', notes: '' },
+      { id: 'sub2', academicYearId: 'y1', studentId: 's2', groupId: 'g1', month: '2026-07', dueAmount: 250, paidAmount: 0, status: 'unpaid', dueDate: '2026-07-01', paidAt: '', paymentMethod: '', notes: '' },
+      { id: 'sub3', academicYearId: 'y2', studentId: 's3', groupId: 'g2', month: '2026-07', dueAmount: 300, paidAmount: 150, status: 'late', dueDate: '2026-07-01', paidAt: '2026-07-10', paymentMethod: 'Cash', notes: 'Partial payment' },
+      { id: 'sub4', academicYearId: 'y3', studentId: 's4', groupId: 'g3', month: '2026-07', dueAmount: 350, paidAmount: 350, status: 'paid', dueDate: '2026-07-01', paidAt: '2026-07-04', paymentMethod: 'Vodafone Cash', notes: '' },
+      { id: 'sub5', academicYearId: 'y1', studentId: 's1', groupId: 'g1', month: '2026-06', dueAmount: 250, paidAmount: 250, status: 'paid', dueDate: '2026-06-01', paidAt: '2026-06-03', paymentMethod: 'Cash', notes: '' },
+      { id: 'sub6', academicYearId: 'y1', studentId: 's2', groupId: 'g1', month: '2026-06', dueAmount: 250, paidAmount: 200, status: 'late', dueDate: '2026-06-01', paidAt: '2026-06-18', paymentMethod: 'Cash', notes: 'Late payment' },
+      { id: 'sub7', academicYearId: 'y2', studentId: 's3', groupId: 'g2', month: '2026-06', dueAmount: 300, paidAmount: 0, status: 'unpaid', dueDate: '2026-06-01', paidAt: '', paymentMethod: '', notes: '' },
+      { id: 'sub8', academicYearId: 'y3', studentId: 's4', groupId: 'g3', month: '2026-06', dueAmount: 350, paidAmount: 350, status: 'paid', dueDate: '2026-06-01', paidAt: '2026-06-04', paymentMethod: 'Vodafone Cash', notes: '' },
+      { id: 'sub9', academicYearId: 'y1', studentId: 's1', groupId: 'g1', month: '2026-05', dueAmount: 250, paidAmount: 250, status: 'paid', dueDate: '2026-05-01', paidAt: '2026-05-02', paymentMethod: 'Cash', notes: '' },
+      { id: 'sub10', academicYearId: 'y1', studentId: 's2', groupId: 'g1', month: '2026-05', dueAmount: 250, paidAmount: 0, status: 'unpaid', dueDate: '2026-05-01', paidAt: '', paymentMethod: '', notes: '' },
+      { id: 'sub11', academicYearId: 'y2', studentId: 's3', groupId: 'g2', month: '2026-05', dueAmount: 300, paidAmount: 300, status: 'paid', dueDate: '2026-05-01', paidAt: '2026-05-03', paymentMethod: 'Cash', notes: '' },
+      { id: 'sub12', academicYearId: 'y3', studentId: 's4', groupId: 'g3', month: '2026-05', dueAmount: 350, paidAmount: 250, status: 'late', dueDate: '2026-05-01', paidAt: '2026-05-12', paymentMethod: 'Cash', notes: 'Partial payment' }
+    ],
+    exams: [
+      { id: 'e1', academicYearId: 'y1', groupId: 'g1', name: 'Monthly Exam 1', date: '2026-07-10', fullMark: 50, duration: 60, notes: '' },
+      { id: 'e2', academicYearId: 'y2', groupId: 'g2', name: 'Monthly Exam 1', date: '2026-07-11', fullMark: 60, duration: 90, notes: '' },
+      { id: 'e3', academicYearId: 'y3', groupId: 'g3', name: 'Monthly Exam 1', date: '2026-07-12', fullMark: 70, duration: 90, notes: '' }
+    ],
+    examResults: [
+      { id: 'r1', examId: 'e1', studentId: 's1', score: 44 },
+      { id: 'r2', examId: 'e1', studentId: 's2', score: 36 },
+      { id: 'r3', examId: 'e2', studentId: 's3', score: 51 },
+      { id: 'r4', examId: 'e3', studentId: 's4', score: 63 }
+    ],
+    notes: [{ id: 'n1', studentId: 's4', content: 'Excellent performance and attendance.' }]
+  };
+
+  const { auth, db, doc, getDoc, setDoc, getDocFromServer, serverTimestamp, onAuthStateChanged, signInWithEmailAndPassword,
+    createUserWithEmailAndPassword, signOut, updatePassword } = window.__fb;
+
+  const $ = (s, p = document) => p.querySelector(s);
+  const $$ = (s, p = document) => [...p.querySelectorAll(s)];
+  let state = structuredClone(seed);
+  let currentUser = null;
+  let currentDocRef = null;
+  let currentPage = 'dashboard';
+  let currentYearId = state.settings.currentYearId || 'y1';
+  let currentSort = { key: 'name', dir: 'asc' };
+  let currentReport = 'year';
+  let currentStudentId = null;
+  let currentExamId = null;
+
+  function uid(prefix='id') { return prefix + Math.random().toString(36).slice(2, 10); }
+  function fmt(n) { return new Intl.NumberFormat('en-US').format(Number(n || 0)); }
+  function esc(v) { return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function byId(arr, id) { return arr.find(x => x.id === id); }
+  function yearById(id) { return byId(state.academicYears, id) || {}; }
+  function groupById(id) { return byId(state.groups, id) || {}; }
+  function studentById(id) { return byId(state.students, id) || {}; }
+  function examById(id) { return byId(state.exams, id) || {}; }
+  function lessonById(id) { return byId(state.lessons, id) || {}; }
+  const DAY_OPTIONS = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+  const TIME_OPTIONS = ['03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM', '06:00 PM', '06:30 PM', '07:00 PM', '07:30 PM', '08:00 PM', '08:30 PM', '09:00 PM'];
+  const PAYMENT_METHOD_OPTIONS = ['Cash', 'Vodafone Cash', 'Bank Transfer', 'Instapay', 'Card'];
+  function optionsHtml(options, value, includePlaceholder = false, placeholder = 'اختر') {
+    const first = includePlaceholder ? `<option value="">${placeholder}</option>` : '';
+    return first + options.map(opt => `<option value="${esc(opt)}" ${opt === value ? 'selected' : ''}>${esc(opt)}</option>`).join('');
+  }
+  function toTimeInputValue(value) {
+    if (!value) return '';
+    const raw = String(value).trim().toUpperCase();
+    const ampm = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)$/);
+    if (ampm) {
+      let h = Number(ampm[1]) % 12;
+      if (ampm[3] === 'PM') h += 12;
+      return `${String(h).padStart(2, '0')}:${ampm[2]}`;
+    }
+    const twentyFour = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (twentyFour) {
+      const h = String(Number(twentyFour[1])).padStart(2, '0');
+      return `${h}:${twentyFour[2]}`;
+    }
+    return '';
+  }
+  function fromTimeInputValue(value) {
+    if (!value) return '';
+    const [hRaw, mRaw] = String(value).split(':');
+    const h = Number(hRaw);
+    const m = Number(mRaw);
+    if (Number.isNaN(h) || Number.isNaN(m)) return '';
+    const pm = h >= 12;
+    const hh = h % 12 === 0 ? 12 : h % 12;
+    return `${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')} ${pm ? 'PM' : 'AM'}`;
+  }
+  function matchesQuery(q, ...fields) {
+    const term = String(q || '').trim().toLowerCase();
+    if (!term) return true;
+    return fields.some(v => String(v ?? '').toLowerCase().includes(term));
+  }
+  function groupOptionsHtml(yearId, selectedGroupId = '') {
+    return state.groups
+      .filter(gr => gr.academicYearId === yearId)
+      .map(gr => `<option value="${gr.id}" ${selectedGroupId === gr.id ? 'selected' : ''}>${esc(gr.name)} - ${esc(yearById(gr.academicYearId).label || '')}</option>`)
+      .join('');
+  }
+  function activeYearId() { return currentYearId || state.settings.currentYearId || state.academicYears[0]?.id || 'y1'; }
+  function activeYear() { return yearById(activeYearId()); }
+  function setFbStatus(ok, message) {
+    const dotIds = ['fbStatusDot', 'fbTopStatus'];
+    for (const id of dotIds) {
+      const el = document.getElementById(id);
+      if (el) el.style.color = ok === null ? '' : (ok ? '#22c55e' : '#ef4444');
+    }
+    const text = document.getElementById('fbStatusText');
+    if (text) text.textContent = message || (ok ? 'متصل بنجاح' : 'غير متصل');
+  }
+  async function testFirebaseConnection() {
+    setFbStatus(null, 'جاري الفحص...');
+    if (!currentUser) { setFbStatus(false, 'لازم تسجل الدخول الأول'); return; }
+    try {
+      const testRef = doc(db, 'users', currentUser.uid, 'appData', 'connectionTest');
+      const stamp = Date.now();
+      await setDoc(testRef, { pingedAt: stamp, at: serverTimestamp() });
+      const snap = await getDocFromServer(testRef);
+      if (snap.exists() && snap.data().pingedAt === stamp) {
+        setFbStatus(true, 'الاتصال شغال - تم الكتابة والقراءة من Firestore بنجاح');
+      } else {
+        setFbStatus(false, 'الكتابة نجحت لكن القراءة رجّعت بيانات غير متوقعة');
+      }
+    } catch (err) {
+      setFbStatus(false, 'فشل الاتصال: ' + err.message);
+    }
+  }
+  function saveState() {
+    state.settings.currentYearId = activeYearId();
+    if (!currentDocRef) return;
+    setDoc(currentDocRef, state)
+      .then(() => setFbStatus(true, 'متصل - آخر حفظ نجح'))
+      .catch(err => { toast('فشل الحفظ: ' + err.message); setFbStatus(false, 'فشل الحفظ: ' + err.message); });
+  }
+  async function loadStateForUser(uid) {
+    currentDocRef = doc(db, 'users', uid, 'appData', 'state');
+    try {
+      const snap = await getDoc(currentDocRef);
+      if (snap.exists()) {
+        state = normalizeState(mergeSeed(snap.data(), seed));
+      } else {
+        state = normalizeState(structuredClone(seed));
+        await setDoc(currentDocRef, state);
+      }
+      setFbStatus(true, 'متصل - تم تحميل البيانات بنجاح');
+    } catch (err) {
+      toast('فشل تحميل البيانات: ' + err.message);
+      setFbStatus(false, 'فشل الاتصال: ' + err.message);
+      state = normalizeState(structuredClone(seed));
+    }
+  }
+  function mergeSeed(parsed, base) {
+    const out = structuredClone(base);
+    for (const k of Object.keys(base)) {
+      if (Array.isArray(base[k])) out[k] = Array.isArray(parsed[k]) ? parsed[k] : base[k];
+      else if (typeof base[k] === 'object' && base[k] !== null) out[k] = { ...base[k], ...(parsed[k] || {}) };
+      else out[k] = parsed[k] ?? base[k];
+    }
+    return out;
+  }
+  function normalizeState(st) {
+    const out = structuredClone(st);
+    out.academicYears = out.academicYears || [];
+    const existingIds = new Set(out.academicYears.map(y => y.id));
+    for (const y of seed.academicYears) {
+      if (!existingIds.has(y.id)) out.academicYears.push(y);
+    }
+    for (const g of out.groups || []) g.time = fromTimeInputValue(toTimeInputValue(g.time));
+    for (const l of out.lessons || []) l.time = fromTimeInputValue(toTimeInputValue(l.time));
+    return out;
+  }
+
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._tm);
+    t._tm = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function studentLessons(studentId) {
+    const s = studentById(studentId);
+    return state.lessons.filter(l => l.academicYearId === s.academicYearId && l.groupId === s.groupId);
+  }
+  function getStudentAttendance(studentId) {
+    const ids = new Set(studentLessons(studentId).map(l => l.id));
+    return state.attendance.filter(a => a.studentId === studentId && ids.has(a.lessonId));
+  }
+  function getStudentSubscriptions(studentId) { return state.subscriptions.filter(s => s.studentId === studentId); }
+  function getStudentExamResults(studentId) { return state.examResults.filter(r => r.studentId === studentId); }
+
+  function calcAttendanceStats(studentId) {
+    const recs = getStudentAttendance(studentId);
+    const total = recs.length || 1;
+    const present = recs.filter(r => r.status === 'present').length;
+    const late = recs.filter(r => r.status === 'late').length;
+    const absent = recs.filter(r => r.status === 'absent').length;
+    const excused = recs.filter(r => r.status === 'excused').length;
+    return { total: recs.length, present, late, absent, excused, pct: Math.round(((present + late) * 100) / total) };
+  }
+  function calcSubscriptionStats(studentId) {
+    const subs = getStudentSubscriptions(studentId);
+    const due = subs.reduce((a,b)=>a + Number(b.dueAmount || 0), 0);
+    const paid = subs.reduce((a,b)=>a + Number(b.paidAmount || 0), 0);
+    return { due, paid, remaining: due - paid };
+  }
+  function calcExamStats(studentId) {
+    const results = getStudentExamResults(studentId).map(r => {
+      const ex = examById(r.examId);
+      return ex ? { ...r, pct: ex.fullMark ? (Number(r.score) * 100 / Number(ex.fullMark)) : 0, date: ex.date } : null;
+    }).filter(Boolean);
+    if (!results.length) return { avg: 0, max: 0, last: null };
+    const avg = results.reduce((a,b)=>a + b.pct, 0) / results.length;
+    const max = Math.max(...results.map(r => r.pct));
+    const last = [...results].sort((a,b)=>a.date.localeCompare(b.date)).at(-1);
+    return { avg: Math.round(avg), max: Math.round(max), last };
+  }
+
+  function yearStudents(yearId = activeYearId()) { return state.students.filter(s => yearId === 'all' ? true : s.academicYearId === yearId); }
+  function yearGroups(yearId = activeYearId()) { return state.groups.filter(g => yearId === 'all' ? true : g.academicYearId === yearId); }
+  function yearLessons(yearId = activeYearId()) { return state.lessons.filter(l => yearId === 'all' ? true : l.academicYearId === yearId); }
+  function yearExams(yearId = activeYearId()) { return state.exams.filter(e => yearId === 'all' ? true : e.academicYearId === yearId); }
+  function yearSubs(yearId = activeYearId()) { return state.subscriptions.filter(s => yearId === 'all' ? true : s.academicYearId === yearId); }
+
+  function setActiveYear(id) {
+    currentYearId = id;
+    state.settings.currentYearId = id;
+    const yearFilter = $('#studentYearFilter');
+    if (yearFilter) yearFilter.value = id;
+    const groupFilter = $('#studentGroupFilter');
+    if (groupFilter) groupFilter.value = '';
+    saveState();
+    renderAll();
+    toast(`تم اختيار ${yearById(id).label || 'السنة'}`);
+  }
+
+  function svgBarChart(series, opts={}) {
+    const w = 960, h = 280, pad = 36;
+    const max = Math.max(10, ...series.map(x => Number(x.value) || 0));
+    const bw = (w - pad*2) / Math.max(series.length, 1);
+    const bars = series.map((d, i) => {
+      const bh = (Number(d.value) / max) * (h - pad*2);
+      const x = pad + i * bw + bw * 0.14;
+      const y = h - pad - bh;
+      return `<rect x="${x}" y="${y}" width="${bw*0.72}" height="${bh}" rx="14" fill="url(#g)"></rect>
+              <text x="${x + bw*0.36}" y="${h - 12}" text-anchor="middle" fill="currentColor" font-size="12">${esc(d.label)}</text>
+              <text x="${x + bw*0.36}" y="${Math.max(y - 6, 18)}" text-anchor="middle" fill="currentColor" font-size="13" font-weight="700">${opts.valuePrefix || ''}${fmt(d.value)}</text>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%">
+      <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#38bdf8"/></linearGradient></defs>
+      <line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="rgba(148,163,184,.35)" />
+      ${bars}
+    </svg>`;
+  }
+  function svgLineChart(series) {
+    if (!series.length) return '<div class="muted">لا توجد بيانات</div>';
+    const w = 960, h = 280, pad = 36, max = Math.max(10, ...series.map(x => Number(x.value) || 0));
+    const points = series.map((d, i) => {
+      const x = pad + (series.length === 1 ? (w - pad*2)/2 : i * ((w - pad*2) / (series.length - 1)));
+      const y = h - pad - ((Number(d.value) / max) * (h - pad*2));
+      return { x, y, label: d.label, value: d.value };
+    });
+    const d = points.map((p, i) => `${i===0?'M':'L'} ${p.x} ${p.y}`).join(' ');
+    const area = `${d} L ${points.at(-1).x} ${h-pad} L ${points[0].x} ${h-pad} Z`;
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%">
+      <defs><linearGradient id="lf" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#38bdf8" stop-opacity=".34"/><stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/></linearGradient></defs>
+      <path d="${area}" fill="url(#lf)"></path>
+      <path d="${d}" stroke="#7c3aed" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+      ${points.map(p => `<circle cx="${p.x}" cy="${p.y}" r="5" fill="#38bdf8"></circle><text x="${p.x}" y="${h-12}" text-anchor="middle" font-size="12" fill="currentColor">${esc(p.label)}</text><text x="${p.x}" y="${p.y - 10}" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">${fmt(p.value)}%</text>`).join('')}
+      <line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="rgba(148,163,184,.35)" />
+    </svg>`;
+  }
+  function svgDonut(series) {
+    const total = series.reduce((a,b)=>a + Number(b.value || 0), 0) || 1;
+    const cx = 160, cy = 140, r = 78, sw = 22;
+    let angle = -90;
+    const colors = ['#22c55e','#ef4444','#f59e0b','#38bdf8'];
+    const segs = series.map((s, i) => {
+      const pct = Number(s.value || 0) / total;
+      const len = 2 * Math.PI * r * pct;
+      const dash = `${len} ${2*Math.PI*r - len}`;
+      const rot = angle;
+      angle += 360 * pct;
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[i%colors.length]}" stroke-width="${sw}" stroke-dasharray="${dash}" transform="rotate(${rot} ${cx} ${cy})"></circle>`;
+    }).join('');
+    const legend = series.map(s => `<div class="mini-item"><span>${esc(s.label)}</span><strong>${fmt(s.value)} (${s.pct}%)</strong></div>`).join('');
+    return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:center">
+      <svg viewBox="0 0 320 280" width="100%" height="100%">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(148,163,184,.18)" stroke-width="${sw}"></circle>
+        ${segs}
+        <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="28" font-weight="800" fill="currentColor">${fmt(total)}</text>
+        <text x="${cx}" y="${cy + 20}" text-anchor="middle" font-size="13" fill="currentColor">إجمالي السجلات</text>
+      </svg>
+      <div class="mini-list">${legend}</div>
+    </div>`;
+  }
+
+  function chartAttendance(yearId = activeYearId()) {
+    const ids = new Set(yearLessons(yearId).map(l => l.id));
+    const all = state.attendance.filter(a => ids.has(a.lessonId));
+    const total = all.length || 1;
+    const counts = {
+      حاضر: all.filter(a=>a.status==='present').length,
+      غائب: all.filter(a=>a.status==='absent').length,
+      متأخر: all.filter(a=>a.status==='late').length,
+      بعذر: all.filter(a=>a.status==='excused').length,
+    };
+    return Object.entries(counts).map(([label, value]) => ({ label, value, pct: Math.round((value * 100) / total) }));
+  }
+  function chartRevenue(yearId = activeYearId()) {
+    const subs = yearSubs(yearId);
+    const months = [...new Set(subs.map(s => s.month))].sort().slice(-6);
+    return months.map(m => ({ label: m, value: subs.filter(s => s.month === m).reduce((a,b)=>a+Number(b.paidAmount || 0),0) }));
+  }
+  function chartGroupDist(yearId = activeYearId()) {
+    return yearGroups(yearId).map(g => ({ label: g.name, value: yearStudents(yearId).filter(s => s.groupId === g.id).length }));
+  }
+  function chartGradeTrend(yearId = activeYearId()) {
+    const exams = yearExams(yearId).sort((a,b)=>a.date.localeCompare(b.date)).slice(-6);
+    return exams.map(ex => {
+      const results = state.examResults.filter(r => r.examId === ex.id);
+      const avg = results.length ? results.reduce((a,b)=>a + (Number(b.score) * 100 / Number(ex.fullMark || 1)), 0) / results.length : 0;
+      return { label: ex.name, value: Math.round(avg) };
+    });
+  }
+  function calcDashboardExamAverage(yearId = activeYearId()) {
+    const vals = state.examResults.map(r => {
+      const ex = examById(r.examId);
+      return ex && ex.academicYearId === yearId && ex.fullMark ? Number(r.score) * 100 / Number(ex.fullMark) : null;
+    }).filter(v => v !== null);
+    return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+  }
+  function getTopStudent(yearId = activeYearId()) {
+    const map = new Map();
+    for (const r of state.examResults) {
+      const ex = examById(r.examId);
+      const st = studentById(r.studentId);
+      if (!ex || !st || ex.academicYearId !== yearId || st.academicYearId !== yearId || !ex.fullMark) continue;
+      const pct = Number(r.score) * 100 / Number(ex.fullMark);
+      if (!map.has(r.studentId) || map.get(r.studentId) < pct) map.set(r.studentId, pct);
+    }
+    let best = null;
+    for (const [studentId, pct] of map.entries()) {
+      if (!best || pct > best.pct) best = { studentId, pct, name: studentById(studentId).name };
+    }
+    return best;
+  }
+
+  function fillYearButtons() {
+    const box = $('#yearButtons');
+    box.innerHTML = state.academicYears.map(y => `<button class="btn secondary ${activeYearId() === y.id ? 'active' : ''}" onclick="setYear('${y.id}')">${esc(y.label)}</button>`).join('');
+  }
+  function fillFilters() {
+    const yearFilter = $('#studentYearFilter');
+    const groupFilter = $('#studentGroupFilter');
+    const currentYear = yearFilter.value || activeYearId();
+    yearFilter.innerHTML = `<option value="all">كل السنوات</option>` + state.academicYears.map(y => `<option value="${y.id}">${esc(y.label)}</option>`).join('');
+    yearFilter.value = currentYear === 'all' ? 'all' : currentYear;
+    const groups = state.groups.filter(g => yearFilter.value === 'all' ? true : g.academicYearId === yearFilter.value);
+    const currentGroup = groupFilter.value;
+    groupFilter.innerHTML = `<option value="">كل المجموعات</option>` + groups.map(g => `<option value="${g.id}">${esc(g.name)} - ${esc(yearById(g.academicYearId).label)}</option>`).join('');
+    if (currentGroup && groups.some(g => g.id === currentGroup)) groupFilter.value = currentGroup;
+    else groupFilter.value = '';
+  }
+
+  function renderDashboard() {
+    const yearId = activeYearId();
+    const ys = yearStudents(yearId), yg = yearGroups(yearId), yl = yearLessons(yearId), ye = yearExams(yearId), ysub = yearSubs(yearId);
+    const today = new Date().toISOString().slice(0,10);
+    const todayLessons = yl.filter(l => l.date === today);
+    const lessonIds = new Set(todayLessons.map(l => l.id));
+    const att = state.attendance.filter(a => lessonIds.has(a.lessonId));
+    const present = att.filter(a => a.status === 'present').length;
+    const absent = att.filter(a => a.status === 'absent').length;
+    const late = att.filter(a => a.status === 'late').length;
+    const unpaid = ysub.filter(s => s.status === 'unpaid' || s.status === 'late').length;
+    const month = today.slice(0,7);
+    const revenue = ysub.filter(s => s.month === month).reduce((a,b)=>a+Number(b.paidAmount || 0),0);
+    const lastLesson = [...yl].sort((a,b)=>b.date.localeCompare(a.date))[0] || null;
+    const lastExam = [...ye].sort((a,b)=>b.date.localeCompare(a.date))[0] || null;
+    const topStudent = getTopStudent(yearId);
+    const cards = [
+      ['إجمالي الطلاب', ys.length, 'السنة الحالية فقط', 'info'],
+      ['عدد المجموعات', yg.length, 'ضمن السنة الحالية', 'ok'],
+      ['عدد الحصص هذا الشهر', yl.filter(l => l.date.slice(0,7) === month).length, `الهدف الافتراضي ${state.settings.lessonsPerMonth || 4}`, 'warn'],
+      ['عدد الامتحانات', ye.length, 'للسنة الحالية', 'bad'],
+      ['حاضر اليوم', present, 'داخل حصص اليوم', 'ok'],
+      ['غائب اليوم', absent, 'داخل حصص اليوم', 'bad'],
+      ['متأخر اليوم', late, 'داخل حصص اليوم', 'warn'],
+      ['غير مسددين', unpaid, 'اشتراكات متأخرة', 'info'],
+      ['إيرادات الشهر', `$${fmt(revenue)}`, 'الشهر الحالي', 'ok'],
+      ['متوسط آخر امتحان', `${calcDashboardExamAverage(yearId)}%`, lastExam ? lastExam.name : 'لا توجد اختبارات كافية', 'warn'],
+      ['أعلى طالب', topStudent ? topStudent.name : '—', topStudent ? `${topStudent.pct}%` : 'لا توجد بيانات', 'info'],
+      ['آخر حصة', lastLesson ? lastLesson.name : '—', lastLesson ? `${lastLesson.title} • ${lastLesson.date}` : 'لا توجد حصص', 'ok']
+    ];
+    $('#dashboardCards').innerHTML = cards.map(([label, value, sub, badge]) => `
+      <div class="card">
+        <div class="stat-top"><div class="stat-label">${esc(label)}</div><span class="chip">${badge === 'ok' ? '⬤' : badge === 'warn' ? '▲' : badge === 'bad' ? '■' : '●'}</span></div>
+        <div class="stat-value">${esc(value)}</div>
+        <div class="stat-sub">${esc(sub)}</div>
+      </div>
+    `).join('');
+    $('#monthlyRevenueLabel').textContent = `${activeYear().label || ''} • ${month}`;
+    $('#revenueChart').innerHTML = svgBarChart(chartRevenue(yearId), { valuePrefix: '$' });
+    $('#attendanceChart').innerHTML = svgDonut(chartAttendance(yearId));
+    $('#yearsChart').innerHTML = svgBarChart(chartGroupDist(yearId));
+    $('#gradesChart').innerHTML = svgLineChart(chartGradeTrend(yearId));
+    $('#sidebarSub').textContent = `Students ${ys.length} • Groups ${yg.length}`;
+    $('#currentYearLabel').textContent = activeYear().label || '';
+  }
+
+  function renderStudents() {
+    const yearFilter = $('#studentYearFilter').value || activeYearId();
+    const groupFilter = $('#studentGroupFilter').value;
+    const q = $('#globalSearch').value || '';
+    let items = yearFilter === 'all' ? [...state.students] : state.students.filter(s => s.academicYearId === yearFilter);
+    if (q) items = items.filter(s => matchesQuery(q, s.name, s.code, s.phone, s.schoolName, s.address, yearById(s.academicYearId).label, groupById(s.groupId).name, (state.guardians.find(g => g.studentId === s.id) || {}).name, (state.guardians.find(g => g.studentId === s.id) || {}).phone));
+    if (groupFilter) items = items.filter(s => s.groupId === groupFilter);
+    items.sort((a,b) => {
+      const av = studentSortValue(a, currentSort.key), bv = studentSortValue(b, currentSort.key);
+      return (av > bv ? 1 : av < bv ? -1 : 0) * (currentSort.dir === 'asc' ? 1 : -1);
+    });
+    $('#studentsTable').innerHTML = items.map(s => {
+      const a = calcAttendanceStats(s.id), sub = calcSubscriptionStats(s.id);
+      const status = sub.remaining <= 0 ? '<span class="status ok">مدفوع</span>' : sub.paid > 0 ? '<span class="status warn">متأخر</span>' : '<span class="status bad">غير مدفوع</span>';
+      return `<tr>
+        <td>${esc(s.code)}</td><td>${esc(s.name)}</td><td>${esc(yearById(s.academicYearId).label || '')}</td><td>${esc(groupById(s.groupId).name || '')}</td><td>${esc(s.phone || '')}</td>
+        <td><span class="status info">${a.pct}%</span></td>
+        <td>${status}</td>
+        <td>
+          <button class="btn secondary" onclick="openStudent('${s.id}')">عرض</button>
+          <button class="btn secondary" onclick="editStudent('${s.id}')">تعديل</button>
+          <button class="btn secondary" onclick="printStudentQR('${s.id}')">QR</button>
+          <button class="btn danger" onclick="deleteStudent('${s.id}')">حذف</button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" class="muted">لا توجد نتائج.</td></tr>';
+  }
+  function studentSortValue(s, key) {
+    switch (key) {
+      case 'academicYearName': return yearById(s.academicYearId).label || '';
+      case 'groupName': return groupById(s.groupId).name || '';
+      default: return String(s[key] ?? '').toLowerCase();
+    }
+  }
+
+  function renderGroups() {
+    const yearId = activeYearId();
+    const q = $('#globalSearch').value || '';
+    const groups = (yearId === 'all' ? [...state.groups] : state.groups.filter(g => g.academicYearId === yearId)).filter(g => matchesQuery(q, g.name, g.dayOfWeek, g.time, g.notes, yearById(g.academicYearId).label));
+    $('#groupCards').innerHTML = groups.map(g => {
+      const cnt = state.students.filter(s => s.academicYearId === g.academicYearId && s.groupId === g.id).length;
+      return `<div class="card">
+        <div class="stat-top"><div class="stat-label">${esc(g.name)}</div><span class="chip">${esc(yearById(g.academicYearId).label || '')}</span></div>
+        <div class="stat-value" style="font-size:22px">${esc(g.dayOfWeek)}</div>
+        <div class="stat-sub">${esc(g.time)} • طلاب: ${cnt} • حصص/شهر: ${g.lessonCount || state.settings.lessonsPerMonth || 4}</div>
+      </div>`;
+    }).join('');
+    $('#groupsTable').innerHTML = groups.map(g => {
+      const cnt = state.students.filter(s => s.academicYearId === g.academicYearId && s.groupId === g.id).length;
+      return `<tr><td>${esc(g.name)}</td><td>${esc(yearById(g.academicYearId).label || '')}</td><td>${esc(g.dayOfWeek)}</td><td>${esc(g.time)}</td><td>${cnt}</td><td>${g.lessonCount || state.settings.lessonsPerMonth || 4}</td><td>$${fmt(g.fee || 0)}</td><td><button class="btn secondary" onclick="editGroup('${g.id}')">تعديل</button> <button class="btn danger" onclick="deleteGroup('${g.id}')">حذف</button></td></tr>`;
+    }).join('') || '<tr><td colspan="8" class="muted">لا توجد مجموعات.</td></tr>';
+  }
+
+  function renderLessons() {
+    const yearId = activeYearId();
+    const q = $('#globalSearch').value || '';
+    const lessons = (yearId === 'all' ? [...state.lessons] : state.lessons.filter(l => l.academicYearId === yearId)).filter(l => matchesQuery(q, l.name, l.date, l.time, l.title, l.notes, yearById(l.academicYearId).label, groupById(l.groupId).name));
+    lessons.sort((a,b) => b.date.localeCompare(a.date));
+    $('#lessonsTable').innerHTML = lessons.map(l => {
+      const g = groupById(l.groupId);
+      const records = state.attendance.filter(a => a.lessonId === l.id);
+      const present = records.filter(r => r.status === 'present').length;
+      const total = state.students.filter(s => s.academicYearId === l.academicYearId && s.groupId === l.groupId).length;
+      return `<tr>
+        <td>${esc(l.name)}</td><td>${esc(yearById(l.academicYearId).label || '')}</td><td>${esc(g.name || '')}</td><td>${esc(l.date)}</td><td>${esc(l.time)}</td><td>${esc(l.title || '')}</td>
+        <td><span class="status info">${present}/${total}</span></td>
+        <td><button class="btn secondary" onclick="openLesson('${l.id}')">الحضور</button> <button class="btn secondary" onclick="editLesson('${l.id}')">تعديل</button> <button class="btn danger" onclick="deleteLesson('${l.id}')">حذف</button></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" class="muted">لا توجد حصص.</td></tr>';
+  }
+
+  function renderExams() {
+    const yearId = activeYearId();
+    const q = $('#globalSearch').value || '';
+    const exams = (yearId === 'all' ? [...state.exams] : state.exams.filter(e => e.academicYearId === yearId)).filter(e => matchesQuery(q, e.name, e.date, e.notes, yearById(e.academicYearId).label, groupById(e.groupId).name));
+    exams.sort((a,b) => b.date.localeCompare(a.date));
+    $('#examsTable').innerHTML = exams.map(ex => {
+      const res = state.examResults.filter(r => r.examId === ex.id);
+      const avg = res.length ? Math.round(res.reduce((a,b)=>a + (Number(b.score) * 100 / Number(ex.fullMark || 1)), 0) / res.length) : 0;
+      return `<tr>
+        <td>${esc(ex.name)}</td><td>${esc(yearById(ex.academicYearId).label || '')}</td><td>${esc(groupById(ex.groupId).name || '')}</td><td>${esc(ex.date)}</td><td>${fmt(ex.fullMark || 0)}</td><td>${res.length}</td><td><span class="status info">${avg}%</span></td>
+        <td><button class="btn secondary" onclick="openExam('${ex.id}')">تفاصيل</button> <button class="btn secondary" onclick="editExam('${ex.id}')">تعديل</button> <button class="btn danger" onclick="deleteExam('${ex.id}')">حذف</button></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" class="muted">لا توجد امتحانات.</td></tr>';
+  }
+
+  function renderSubscriptions() {
+    const yearId = activeYearId();
+    const status = $('#subscriptionStatusFilter').value;
+    const q = $('#globalSearch').value || '';
+    let items = yearId === 'all' ? [...state.subscriptions] : state.subscriptions.filter(s => s.academicYearId === yearId);
+    if (q) items = items.filter(s => matchesQuery(q, (studentById(s.studentId) || {}).name, (studentById(s.studentId) || {}).code, (groupById(s.groupId) || {}).name, s.month, s.status, s.paymentMethod, (yearById(s.academicYearId) || {}).label));
+    items.sort((a,b)=>b.month.localeCompare(a.month));
+    if (status) items = items.filter(s => s.status === status);
+    const totalRevenue = items.reduce((a,b)=>a + Number(b.paidAmount || 0), 0);
+    const unpaid = (yearId === 'all' ? state.subscriptions : state.subscriptions.filter(s => s.academicYearId === yearId)).filter(s => s.status === 'unpaid').length;
+    const late = (yearId === 'all' ? state.subscriptions : state.subscriptions.filter(s => s.academicYearId === yearId)).filter(s => s.status === 'late').length;
+    const paid = (yearId === 'all' ? state.subscriptions : state.subscriptions.filter(s => s.academicYearId === yearId)).filter(s => s.status === 'paid').length;
+    $('#subscriptionCards').innerHTML = [
+      ['إجمالي الإيرادات', `$${fmt(totalRevenue)}`, 'حسب الفلتر الحالي', 'ok'],
+      ['المدفوع', paid, 'اشتراكات مكتملة', 'info'],
+      ['غير مدفوع', unpaid, 'لم يتم السداد بعد', 'bad'],
+      ['متأخر', late, 'مبالغ جزئية/متأخرة', 'warn']
+    ].map(([label, value, sub, cls]) => `<div class="card"><div class="stat-top"><div class="stat-label">${label}</div><span class="chip">${cls}</span></div><div class="stat-value">${value}</div><div class="stat-sub">${sub}</div></div>`).join('');
+    $('#subscriptionsTable').innerHTML = items.map(s => `<tr>
+      <td>${esc(studentById(s.studentId).name || '')}</td><td>${esc(yearById(s.academicYearId).label || '')}</td><td>${esc(groupById(s.groupId).name || '')}</td><td>${esc(s.month)}</td>
+      <td>$${fmt(s.dueAmount || 0)}</td><td>$${fmt(s.paidAmount || 0)}</td><td>${s.dueDate || ''}</td><td><span class="status ${s.status === 'paid' ? 'ok' : s.status === 'late' ? 'warn' : 'bad'}">${esc(s.status)}</span></td>
+      <td><button class="btn secondary" onclick="markPaid('${s.id}')">تسجيل دفعة</button> <button class="btn danger" onclick="deleteSubscription('${s.id}')">حذف</button></td>
+    </tr>`).join('') || '<tr><td colspan="9" class="muted">لا توجد اشتراكات.</td></tr>';
+  }
+
+  function monthLabel(month) {
+    try {
+      return new Intl.DateTimeFormat('ar-EG', { month: 'long', year: 'numeric' }).format(new Date(`${month}-01T00:00:00`));
+    } catch {
+      return month;
+    }
+  }
+
+  function archiveMonths(yearId = activeYearId()) {
+    const q = $('#globalSearch')?.value || '';
+    const months = [...new Set(yearSubs(yearId).filter(s => matchesQuery(q, s.month, (studentById(s.studentId) || {}).name, (groupById(s.groupId) || {}).name, s.status)).map(s => s.month))];
+    const current = new Date().toISOString().slice(0, 7);
+    if (!months.includes(current)) months.push(current);
+    return months.sort((a, b) => b.localeCompare(a));
+  }
+
+  function monthSummary(yearId, month) {
+    const subs = yearSubs(yearId).filter(s => s.month === month);
+    const due = subs.reduce((a, b) => a + Number(b.dueAmount || 0), 0);
+    const paid = subs.reduce((a, b) => a + Number(b.paidAmount || 0), 0);
+    const paidCount = subs.filter(s => s.status === 'paid').length;
+    const unpaidCount = subs.filter(s => s.status === 'unpaid').length;
+    const lateCount = subs.filter(s => s.status === 'late').length;
+    const totalStudents = yearStudents(yearId).length;
+    const totalLessons = yearGroups(yearId).reduce((a, g) => a + Number(g.lessonCount || state.settings.lessonsPerMonth || 4), 0);
+    return { subs, due, paid, paidCount, unpaidCount, lateCount, totalStudents, totalLessons };
+  }
+
+  function openMonthReport(month) {
+    const yearId = activeYearId();
+    const summary = monthSummary(yearId, month);
+    const monthSubs = summary.subs.sort((a, b) => String(a.groupId).localeCompare(String(b.groupId)));
+    const rows = monthSubs.map(s => {
+      const balance = Number(s.dueAmount || 0) - Number(s.paidAmount || 0);
+      return `<tr>
+        <td>${esc(studentById(s.studentId).name || '')}</td>
+        <td>${esc(groupById(s.groupId).name || '')}</td>
+        <td>$${fmt(s.dueAmount || 0)}</td>
+        <td>$${fmt(s.paidAmount || 0)}</td>
+        <td>$${fmt(balance)}</td>
+        <td><span class="status ${s.status === 'paid' ? 'ok' : s.status === 'late' ? 'warn' : 'bad'}">${esc(s.status)}</span></td>
+        <td>${esc(s.dueDate || '')}</td>
+      </tr>`;
+    }).join('');
+    openModal(`تقرير شهر ${monthLabel(month)}`, yearById(yearId).label || '', `
+      <div class="panel" style="margin:0">
+        <div class="grid-cards">
+          <div class="card"><div class="stat-label">عدد الطلاب</div><div class="stat-value">${summary.totalStudents}</div></div>
+          <div class="card"><div class="stat-label">المستحق</div><div class="stat-value">$${fmt(summary.due)}</div></div>
+          <div class="card"><div class="stat-label">المدفوع</div><div class="stat-value">$${fmt(summary.paid)}</div></div>
+          <div class="card"><div class="stat-label">المتبقي</div><div class="stat-value">$${fmt(summary.due - summary.paid)}</div></div>
+        </div>
+        <div class="grid-cards" style="margin-top:12px">
+          <div class="card"><div class="stat-label">مدفوع</div><div class="stat-value">${summary.paidCount}</div></div>
+          <div class="card"><div class="stat-label">غير مدفوع</div><div class="stat-value">${summary.unpaidCount}</div></div>
+          <div class="card"><div class="stat-label">متأخر</div><div class="stat-value">${summary.lateCount}</div></div>
+          <div class="card"><div class="stat-label">حصص الشهر</div><div class="stat-value">${summary.totalLessons}</div></div>
+        </div>
+        <div class="chart-box" style="margin-top:12px; height: 240px">${svgDonut([
+          { label: 'مدفوع', value: summary.paidCount },
+          { label: 'غير مدفوع', value: summary.unpaidCount },
+          { label: 'متأخر', value: summary.lateCount },
+          { label: 'أخرى', value: Math.max(summary.subs.length - summary.paidCount - summary.unpaidCount - summary.lateCount, 0) }
+        ])}</div>
+        <div class="table-wrap" style="margin-top:12px">
+          <table>
+            <thead><tr><th>الطالب</th><th>المجموعة</th><th>المستحق</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th><th>تاريخ الاستحقاق</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="7">لا توجد سجلات لهذا الشهر.</td></tr>'}</tbody>
+          </table>
+        </div>
+      </div>
+    `);
+  }
+
+  function renderMonthArchive() {
+    const yearId = activeYearId();
+    const months = archiveMonths(yearId);
+    $('#archiveCards').innerHTML = [
+      ['الشهور المسجلة', months.length, yearById(yearId).label || '', 'info'],
+      ['إجمالي الطلاب', yearStudents(yearId).length, 'للسنة الحالية', 'ok'],
+      ['إجمالي المدفوع', `$${fmt(months.reduce((acc, m) => acc + monthSummary(yearId, m).paid, 0))}`, 'كل الشهور', 'warn'],
+      ['إجمالي المتبقي', `$${fmt(months.reduce((acc, m) => acc + Math.max(monthSummary(yearId, m).due - monthSummary(yearId, m).paid, 0), 0))}`, 'كل الشهور', 'bad']
+    ].map(([label, value, sub, cls]) => `<div class="card"><div class="stat-top"><div class="stat-label">${label}</div><span class="chip">${cls}</span></div><div class="stat-value">${value}</div><div class="stat-sub">${sub}</div></div>`).join('');
+    $('#archiveTable').innerHTML = months.map(month => {
+      const s = monthSummary(yearId, month);
+      return `<tr>
+        <td>${esc(monthLabel(month))}</td>
+        <td>${s.totalStudents}</td>
+        <td>$${fmt(s.due)}</td>
+        <td>$${fmt(s.paid)}</td>
+        <td>$${fmt(Math.max(s.due - s.paid, 0))}</td>
+        <td>${s.paidCount}</td>
+        <td>${s.unpaidCount}</td>
+        <td>${s.lateCount}</td>
+        <td>${yearGroups(yearId).reduce((a, g) => a + Number(g.lessonCount || state.settings.lessonsPerMonth || 4), 0)}</td>
+        <td><button class="btn secondary" onclick="openMonthReport('${month}')">عرض التقرير</button></td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="10" class="muted">لا توجد شهور مسجلة.</td></tr>';
+  }
+
+  function renderReports() {
+    const tabs = [
+      ['student','تقرير طالب'], ['group','تقرير مجموعة'], ['year','تقرير سنة'], ['attendance','الحضور'],
+      ['subscriptions','الاشتراكات'], ['revenue','الإيرادات'], ['exams','الامتحانات'], ['top','المتفوقين']
+    ];
+    $('#reportTabs').innerHTML = tabs.map(([k, l]) => `<button class="tab ${currentReport===k?'active':''}" onclick="setReport('${k}')">${l}</button>`).join('');
+    $('#reportContent').innerHTML = reportContent(currentReport);
+  }
+  function reportContent(type) {
+    if (type === 'student') {
+      const s = yearStudents().at(0);
+      return studentReportHtml(s?.id);
+    }
+    if (type === 'group') return groupReportHtml(yearGroups().at(0)?.id);
+    if (type === 'year') return yearReportHtml(activeYearId());
+    if (type === 'attendance') return `<div class="panel"><h3>تقرير الحضور</h3>${svgDonut(chartAttendance())}</div>`;
+    if (type === 'subscriptions') return `<div class="panel"><h3>تقرير الاشتراكات</h3><p>مدفوع: ${yearSubs().filter(s=>s.status==='paid').length}</p><p>غير مدفوع: ${yearSubs().filter(s=>s.status==='unpaid').length}</p><p>متأخر: ${yearSubs().filter(s=>s.status==='late').length}</p><p>الإيرادات: $${fmt(yearSubs().reduce((a,b)=>a+Number(b.paidAmount||0),0))}</p></div>`;
+    if (type === 'revenue') return `<div class="panel"><h3>تقرير الإيرادات</h3>${svgBarChart(chartRevenue(), { valuePrefix: '$' })}</div>`;
+    if (type === 'exams') return `<div class="panel"><h3>تقرير الامتحانات</h3>${yearExams().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(ex=>{ const res = state.examResults.filter(r=>r.examId===ex.id); const avg = res.length ? Math.round(res.reduce((a,b)=>a + (Number(b.score) * 100 / Number(ex.fullMark || 1)),0)/res.length) : 0; return `<p>${esc(ex.name)} — ${avg}%</p>`; }).join('') || '<p class="muted">لا توجد بيانات</p>'}</div>`;
+    if (type === 'top') return `<div class="panel"><h3>المتفوقين</h3>${yearStudents().map(s => ({ name:s.name, pct: calcExamStats(s.id).avg })).sort((a,b)=>b.pct-a.pct).slice(0,5).map(r=>`<p>${esc(r.name)} — ${r.pct}%</p>`).join('') || '<p class="muted">لا توجد بيانات</p>'}</div>`;
+    return '';
+  }
+
+  function studentReportHtml(studentId) {
+    const s = studentById(studentId);
+    if (!s) return '<div class="muted">لا يوجد طالب.</div>';
+    const g = groupById(s.groupId), y = yearById(s.academicYearId), p = state.guardians.find(x => x.studentId === studentId);
+    const a = calcAttendanceStats(studentId), sub = calcSubscriptionStats(studentId), ex = calcExamStats(studentId);
+    return `<div class="panel">
+      <h3>تقرير طالب</h3>
+      <p class="subtle">${esc(s.name)} • ${esc(s.code)}</p>
+      <div class="two-cols">
+        <div><p><strong>السنة:</strong> ${esc(y.label || '')}</p><p><strong>المجموعة:</strong> ${esc(g.name || '')}</p><p><strong>الهاتف:</strong> ${esc(s.phone || '')}</p><p><strong>المدرسة:</strong> ${esc(s.schoolName || '')}</p></div>
+        <div><p><strong>ولي الأمر:</strong> ${esc(p?.name || '')}</p><p><strong>نسبة الحضور:</strong> ${a.pct}%</p><p><strong>المتبقي:</strong> $${fmt(sub.remaining)}</p><p><strong>متوسط الامتحانات:</strong> ${ex.avg}%</p></div>
+      </div>
+    </div>`;
+  }
+  function groupReportHtml(groupId) {
+    const g = groupById(groupId);
+    if (!g) return '<div class="muted">لا توجد مجموعة.</div>';
+    const students = yearStudents(g.academicYearId).filter(s => s.groupId === g.id);
+    const revenue = yearSubs(g.academicYearId).filter(s => s.groupId === g.id).reduce((a,b)=>a + Number(b.paidAmount || 0), 0);
+    return `<div class="panel"><h3>تقرير مجموعة</h3><p class="subtle">${esc(g.name)} • ${esc(yearById(g.academicYearId).label || '')}</p><p><strong>عدد الطلاب:</strong> ${students.length}</p><p><strong>الحصص/شهر:</strong> ${g.lessonCount || state.settings.lessonsPerMonth || 4}</p><p><strong>الإيرادات:</strong> $${fmt(revenue)}</p></div>`;
+  }
+  function yearReportHtml(yearId) {
+    const ys = yearStudents(yearId), yg = yearGroups(yearId), yl = yearLessons(yearId), ye = yearExams(yearId), ysub = yearSubs(yearId);
+    return `<div class="panel"><h3>تقرير سنة دراسية</h3><p class="subtle">${esc(yearById(yearId).label || '')}</p><p><strong>الطلاب:</strong> ${ys.length}</p><p><strong>المجموعات:</strong> ${yg.length}</p><p><strong>الحصص:</strong> ${yl.length} (الافتراضي ${state.settings.lessonsPerMonth || 4} حصص/شهر)</p><p><strong>الامتحانات:</strong> ${ye.length}</p><p><strong>الإيرادات:</strong> $${fmt(ysub.reduce((a,b)=>a + Number(b.paidAmount || 0), 0))}</p></div>`;
+  }
+
+  function studentTabHtml(studentId) {
+    const s = studentById(studentId), g = state.guardians.find(x => x.studentId === studentId), a = calcAttendanceStats(studentId), sub = calcSubscriptionStats(studentId), ex = calcExamStats(studentId);
+    return `
+      <div class="tabs">
+        <button class="tab active" onclick="showStudentTab('info')">المعلومات</button>
+        <button class="tab" onclick="showStudentTab('attendance')">الحضور</button>
+        <button class="tab" onclick="showStudentTab('subs')">الاشتراكات</button>
+        <button class="tab" onclick="showStudentTab('exams')">الامتحانات</button>
+        <button class="tab" onclick="showStudentTab('notes')">الملاحظات</button>
+        <button class="tab" onclick="showStudentTab('qr')">QR</button>
+      </div>
+      <div id="studentTab-info" class="student-tab">
+        <div class="two-cols">
+          <div class="panel"><h3>البيانات الأساسية</h3><p><strong>الكود:</strong> ${esc(s.code)}</p><p><strong>الاسم:</strong> ${esc(s.name)}</p><p><strong>السنة:</strong> ${esc(yearById(s.academicYearId).label || '')}</p><p><strong>المجموعة:</strong> ${esc(groupById(s.groupId).name || '')}</p><p><strong>الهاتف:</strong> ${esc(s.phone || '')}</p><p><strong>العنوان:</strong> ${esc(s.address || '')}</p></div>
+          <div class="panel"><h3>ولي الأمر</h3><p><strong>الاسم:</strong> ${esc(g?.name || '')}</p><p><strong>العلاقة:</strong> ${esc(g?.relation || '')}</p><p><strong>الهاتف:</strong> ${esc(g?.phone || '')}</p><p><strong>واتساب:</strong> ${esc(g?.whatsapp || '')}</p><p><strong>احتياطي:</strong> ${esc(g?.emergencyPhone || '')}</p></div>
+        </div>
+        <div class="grid-cards" style="margin-top:12px">
+          <div class="card"><div class="stat-label">نسبة الحضور</div><div class="stat-value">${a.pct}%</div></div>
+          <div class="card"><div class="stat-label">الغياب</div><div class="stat-value">${a.absent}</div></div>
+          <div class="card"><div class="stat-label">المتبقي</div><div class="stat-value">$${fmt(sub.remaining)}</div></div>
+          <div class="card"><div class="stat-label">متوسط الامتحانات</div><div class="stat-value">${ex.avg}%</div></div>
+        </div>
+      </div>
+      <div id="studentTab-attendance" class="student-tab" style="display:none">${studentAttendanceHtml(studentId)}</div>
+      <div id="studentTab-subs" class="student-tab" style="display:none">${studentSubsHtml(studentId)}</div>
+      <div id="studentTab-exams" class="student-tab" style="display:none">${studentExamsHtml(studentId)}</div>
+      <div id="studentTab-notes" class="student-tab" style="display:none">${studentNotesHtml(studentId)}</div>
+      <div id="studentTab-qr" class="student-tab" style="display:none">${studentQrHtml(studentId)}</div>
+    `;
+  }
+  function studentQrHtml(studentId) {
+    const s = studentById(studentId);
+    return `<div class="panel" style="text-align:center">
+      <h3>كود QR الخاص بالطالب</h3>
+      <div id="studentQrBox" style="display:flex;justify-content:center;margin:14px 0"></div>
+      <p class="subtle">${esc(s.code)} • ${esc(s.name)}</p>
+      <div class="controls" style="justify-content:center;margin-top:10px">
+        <button class="btn secondary" onclick="printStudentQR('${studentId}')">طباعة / تحميل</button>
+      </div>
+    </div>`;
+  }
+  function studentAttendanceHtml(studentId) {
+    const recs = getStudentAttendance(studentId);
+    const rows = recs.map(r => {
+      const l = lessonById(r.lessonId);
+      return `<tr><td>${esc(l.date || '')}</td><td>${esc(l.name || '')}</td><td>${esc(groupById(l.groupId).name || '')}</td><td><span class="status ${r.status === 'present' ? 'ok' : r.status === 'late' ? 'warn' : r.status === 'excused' ? 'info' : 'bad'}">${esc(r.status)}</span></td></tr>`;
+    }).join('');
+    return `<div class="panel"><h3>الحضور</h3><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الحصة</th><th>المجموعة</th><th>الحالة</th></tr></thead><tbody>${rows || '<tr><td colspan="4">لا توجد سجلات.</td></tr>'}</tbody></table></div></div>`;
+  }
+  function studentSubsHtml(studentId) {
+    const subs = getStudentSubscriptions(studentId);
+    const rows = subs.map(s => `<tr><td>${esc(s.month)}</td><td>$${fmt(s.dueAmount)}</td><td>$${fmt(s.paidAmount)}</td><td>${s.dueDate || ''}</td><td><span class="status ${s.status === 'paid' ? 'ok' : s.status === 'late' ? 'warn' : 'bad'}">${esc(s.status)}</span></td></tr>`).join('');
+    const st = calcSubscriptionStats(studentId);
+    return `<div class="panel"><h3>الاشتراكات</h3><p><strong>إجمالي المدفوع:</strong> $${fmt(st.paid)} • <strong>المتبقي:</strong> $${fmt(st.remaining)}</p><div class="table-wrap"><table><thead><tr><th>الشهر</th><th>المستحق</th><th>المدفوع</th><th>تاريخ الاستحقاق</th><th>الحالة</th></tr></thead><tbody>${rows || '<tr><td colspan="5">لا توجد اشتراكات.</td></tr>'}</tbody></table></div></div>`;
+  }
+  function studentExamsHtml(studentId) {
+    const rows = getStudentExamResults(studentId).map(r => {
+      const ex = examById(r.examId);
+      const pct = ex.fullMark ? Math.round(Number(r.score) * 100 / Number(ex.fullMark)) : 0;
+      return `<tr><td>${esc(ex.name || '')}</td><td>${esc(ex.date || '')}</td><td>${fmt(r.score)}</td><td>${fmt(ex.fullMark || 0)}</td><td>${pct}%</td><td>${gradeLabel(pct)}</td></tr>`;
+    }).join('');
+    const ex = calcExamStats(studentId);
+    return `<div class="panel"><h3>الامتحانات</h3><p><strong>المتوسط:</strong> ${ex.avg}%</p><div class="table-wrap"><table><thead><tr><th>الامتحان</th><th>التاريخ</th><th>الدرجة</th><th>النهائية</th><th>النسبة</th><th>التقدير</th></tr></thead><tbody>${rows || '<tr><td colspan="6">لا توجد نتائج.</td></tr>'}</tbody></table></div></div>`;
+  }
+  function studentNotesHtml(studentId) {
+    const notes = state.notes.filter(n => n.studentId === studentId);
+    return `<div class="panel"><h3>الملاحظات</h3><div class="mini-list">${notes.map(n => `<div class="mini-item"><span>${esc(n.content)}</span><button class="btn secondary" onclick="deleteNote('${n.id}')">حذف</button></div>`).join('') || '<div class="muted">لا توجد ملاحظات.</div>'}</div><div style="height:10px"></div><button class="btn" onclick="addNote('${studentId}')">إضافة ملاحظة</button></div>`;
+  }
+
+  function gradeLabel(pct) {
+    if (pct >= 90) return 'A';
+    if (pct >= 80) return 'B';
+    if (pct >= 70) return 'C';
+    if (pct >= 60) return 'D';
+    return 'F';
+  }
+
+  function openModal(title, subtitle, bodyHtml) {
+    $('#modalTitle').textContent = title;
+    $('#modalSubtitle').textContent = subtitle || '';
+    $('#modalBody').innerHTML = bodyHtml;
+    $('#modalBackdrop').classList.add('show');
+  }
+  function closeModal() { $('#modalBackdrop').classList.remove('show'); }
+
+  function openStudent(studentId) {
+    currentStudentId = studentId;
+    const s = studentById(studentId);
+    openModal(`ملف الطالب: ${s.name}`, s.code, studentTabHtml(studentId));
+    window.showStudentTab = function(name) {
+      $$('.student-tab').forEach(el => el.style.display = 'none');
+      $('#studentTab-' + name).style.display = 'block';
+      $$('.tabs .tab').forEach(btn => btn.classList.remove('active'));
+    };
+    const qrBox = $('#studentQrBox');
+    if (qrBox && window.QRCode) {
+      qrBox.innerHTML = '';
+      new QRCode(qrBox, { text: `STUDENT:${s.code}:${s.id}`, width: 160, height: 160 });
+    }
+  }
+  function printStudentQR(studentId) {
+    printStudentQRCards([studentById(studentId)]);
+  }
+  function printStudentQRCards(students) {
+    if (!students.length) return toast('لا يوجد طلاب لعرضهم');
+    const win = window.open('', '_blank');
+    if (!win) return toast('المتصفح منع فتح نافذة جديدة، فعّل النوافذ المنبثقة');
+    const cardsHtml = students.map(s => `
+      <div class="qr-card">
+        <div class="qr-box" id="qr-${s.id}"></div>
+        <div class="qr-name">${esc(s.name)}</div>
+        <div class="qr-code">${esc(s.code)}</div>
+        <div class="qr-group">${esc(yearById(s.academicYearId).label || '')} - ${esc(groupById(s.groupId).name || '')}</div>
+      </div>`).join('');
+    win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+      <title>QR الطلاب</title>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+      <style>
+        body{font-family:system-ui,Arial,sans-serif;margin:0;padding:24px;background:#fff;color:#111}
+        .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+        .qr-card{border:1px solid #ddd;border-radius:14px;padding:14px;text-align:center;break-inside:avoid}
+        .qr-box{display:flex;justify-content:center;margin-bottom:8px}
+        .qr-name{font-weight:700;font-size:14px}
+        .qr-code{color:#555;font-size:12px}
+        .qr-group{color:#888;font-size:11px;margin-top:2px}
+        @media print { body{padding:0} }
+      </style>
+      </head><body><div class="grid">${cardsHtml}</div></body></html>`);
+    win.document.close();
+    win.onload = () => {
+      students.forEach(s => {
+        new win.QRCode(win.document.getElementById('qr-' + s.id), { text: `STUDENT:${s.code}:${s.id}`, width: 130, height: 130 });
+      });
+      setTimeout(() => win.print(), 350);
+    };
+  }
+  window.printStudentQR = printStudentQR;
+  function openStudentForm(id) {
+    const s = id ? studentById(id) : null;
+    const g = s ? state.guardians.find(x => x.studentId === s.id) : null;
+    const defaultYear = s?.academicYearId || activeYearId();
+    const defaultGroup = s?.groupId || '';
+    const body = `
+      <form id="studentForm" class="panel" style="margin:0">
+        <div class="form-grid">
+          <div class="field"><label>الاسم</label><input name="name" required value="${esc(s?.name || '')}"></div>
+          <div class="field"><label>السنة</label><select name="academicYearId">${state.academicYears.map(y => `<option value="${y.id}" ${defaultYear === y.id ? 'selected' : ''}>${esc(y.label)}</option>`).join('')}</select></div>
+          <div class="field"><label>المجموعة</label><select name="groupId">${groupOptionsHtml(defaultYear, defaultGroup)}</select></div>
+          <div class="field"><label>المدرسة</label><input name="schoolName" value="${esc(s?.schoolName || '')}"></div>
+          <div class="field"><label>الهاتف</label><input name="phone" value="${esc(s?.phone || '')}"></div>
+          <div class="field"><label>تاريخ الميلاد</label><input name="birthDate" type="date" value="${esc(s?.birthDate || '')}"></div>
+          <div class="field"><label>تاريخ الاشتراك</label><input name="joinDate" type="date" value="${esc(s?.joinDate || '')}"></div>
+          <div class="field"><label>العنوان</label><input name="address" value="${esc(s?.address || '')}"></div>
+          <div class="field"><label>الصورة</label><input name="photoUrl" value="${esc(s?.photoUrl || '')}"></div>
+        </div>
+        <div class="field" style="margin-top:10px"><label>ملاحظات</label><textarea name="notes">${esc(s?.notes || '')}</textarea></div>
+        <div class="panel" style="margin-top:12px">
+          <h3>بيانات ولي الأمر</h3>
+          <div class="form-grid">
+            <div class="field"><label>الاسم</label><input name="guardianName" value="${esc(g?.name || '')}"></div>
+            <div class="field"><label>صلة القرابة</label><input name="guardianRelation" value="${esc(g?.relation || '')}"></div>
+            <div class="field"><label>الهاتف</label><input name="guardianPhone" value="${esc(g?.phone || '')}"></div>
+            <div class="field"><label>واتساب</label><input name="guardianWhatsapp" value="${esc(g?.whatsapp || '')}"></div>
+            <div class="field"><label>رقم احتياطي</label><input name="guardianEmergencyPhone" value="${esc(g?.emergencyPhone || '')}"></div>
+            <div class="field"><label>ملاحظات ولي الأمر</label><input name="guardianNotes" value="${esc(g?.notes || '')}"></div>
+          </div>
+        </div>
+        <div class="controls" style="margin-top:12px">
+          <button class="btn" type="submit">حفظ</button>
+          <button class="btn secondary" type="button" onclick="closeModal()">إلغاء</button>
+        </div>
+      </form>`;
+    openModal(id ? 'تعديل طالب' : 'طالب جديد', '', body);
+    const studentYearSel = $('#studentForm select[name="academicYearId"]');
+    const studentGroupSel = $('#studentForm select[name="groupId"]');
+    studentYearSel.addEventListener('change', () => {
+      studentGroupSel.innerHTML = groupOptionsHtml(studentYearSel.value, '');
+    });
+    $('#studentForm').onsubmit = (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target).entries());
+      if (s) {
+        Object.assign(s, {
+          name: data.name, academicYearId: data.academicYearId, groupId: data.groupId, schoolName: data.schoolName,
+          phone: data.phone, birthDate: data.birthDate, joinDate: data.joinDate, address: data.address, photoUrl: data.photoUrl, notes: data.notes
+        });
+        if (g) Object.assign(g, { name: data.guardianName, relation: data.guardianRelation, phone: data.guardianPhone, whatsapp: data.guardianWhatsapp, emergencyPhone: data.guardianEmergencyPhone, notes: data.guardianNotes });
+        else state.guardians.push({ id: uid('p'), studentId: s.id, name: data.guardianName, relation: data.guardianRelation, phone: data.guardianPhone, whatsapp: data.guardianWhatsapp, emergencyPhone: data.guardianEmergencyPhone, notes: data.guardianNotes });
+      } else {
+        const idNew = uid('s');
+        const code = 'ST-' + Math.floor(1000 + Math.random() * 9000);
+        state.students.push({ id: idNew, code, ...data });
+        state.guardians.push({ id: uid('p'), studentId: idNew, name: data.guardianName, relation: data.guardianRelation, phone: data.guardianPhone, whatsapp: data.guardianWhatsapp, emergencyPhone: data.guardianEmergencyPhone, notes: data.guardianNotes });
+        const month = new Date().toISOString().slice(0,7);
+        state.subscriptions.push({ id: uid('sub'), academicYearId: data.academicYearId, studentId: idNew, groupId: data.groupId, month, dueAmount: Number(groupById(data.groupId).fee || state.settings.defaultFee), paidAmount: 0, status: 'unpaid', dueDate: `${month}-01`, paidAt: '', paymentMethod: '', notes: '' });
+      }
+      saveState(); renderAll(); closeModal(); toast('تم الحفظ');
+    };
+  }
+
+  function openGroupForm(id) {
+    const g = id ? groupById(id) : null;
+    const yearId = g?.academicYearId || activeYearId();
+    const body = `
+      <form id="groupForm" class="panel" style="margin:0">
+        <div class="form-grid">
+          <div class="field"><label>الاسم</label><input name="name" required value="${esc(g?.name || '')}"></div>
+          <div class="field"><label>السنة الدراسية</label><select name="academicYearId">${state.academicYears.map(y => `<option value="${y.id}" ${yearId === y.id ? 'selected' : ''}>${esc(y.label)}</option>`).join('')}</select></div>
+          <div class="field"><label>اليوم</label><select name="dayOfWeek">${optionsHtml(DAY_OPTIONS, g?.dayOfWeek || "", true, "اختر اليوم")}</select></div>
+          <div class="field"><label>الوقت</label><input name="time" type="time" value="${esc(toTimeInputValue(g?.time || ''))}" step="1"></div>
+          <div class="field"><label>الاشتراك الشهري</label><input name="fee" type="number" min="0" value="${esc(g?.fee || state.settings.defaultFee)}"></div>
+          <div class="field"><label>عدد الحصص بالشهر</label><input name="lessonCount" type="number" min="1" value="${esc(g?.lessonCount || state.settings.lessonsPerMonth || 4)}"></div>
+        </div>
+        <div class="field" style="margin-top:10px"><label>ملاحظات</label><textarea name="notes">${esc(g?.notes || '')}</textarea></div>
+        <div class="controls" style="margin-top:12px">
+          <button class="btn" type="submit">حفظ</button>
+          <button class="btn secondary" type="button" onclick="closeModal()">إلغاء</button>
+        </div>
+      </form>`;
+    openModal(id ? 'تعديل مجموعة' : 'مجموعة جديدة', '', body);
+    $('#groupForm').onsubmit = e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target).entries());
+      data.time = fromTimeInputValue(data.time);
+      data.fee = Number(data.fee || 0);
+      data.lessonCount = Number(data.lessonCount || state.settings.lessonsPerMonth || 4);
+      if (g) Object.assign(g, data);
+      else state.groups.push({ id: uid('g'), ...data });
+      saveState(); renderAll(); closeModal(); toast('تم حفظ المجموعة');
+    };
+  }
+
+  function openLessonForm(id) {
+    const l = id ? lessonById(id) : null;
+    const yearId = l?.academicYearId || activeYearId();
+    const body = `
+      <form id="lessonForm" class="panel" style="margin:0">
+        <div class="form-grid">
+          <div class="field"><label>الاسم</label><input name="name" required value="${esc(l?.name || '')}"></div>
+          <div class="field"><label>السنة</label><select name="academicYearId">${state.academicYears.map(y => `<option value="${y.id}" ${yearId === y.id ? 'selected' : ''}>${esc(y.label)}</option>`).join('')}</select></div>
+          <div class="field"><label>المجموعة</label><select name="groupId">${groupOptionsHtml(yearId, l?.groupId || '')}</select></div>
+          <div class="field"><label>التاريخ</label><input name="date" type="date" value="${esc(l?.date || new Date().toISOString().slice(0,10))}"></div>
+          <div class="field"><label>الوقت</label><input name="time" type="time" value="${esc(toTimeInputValue(l?.time || ''))}" step="1"></div>
+          <div class="field"><label>عنوان الدرس</label><input name="title" value="${esc(l?.title || '')}"></div>
+        </div>
+        <div class="field" style="margin-top:10px"><label>ملاحظات</label><textarea name="notes">${esc(l?.notes || '')}</textarea></div>
+        <div class="controls" style="margin-top:12px">
+          <button class="btn" type="submit">حفظ</button>
+          <button class="btn secondary" type="button" onclick="closeModal()">إلغاء</button>
+        </div>
+      </form>`;
+    openModal(id ? 'تعديل حصة' : 'حصة جديدة', '', body);
+    const lessonYearSel = $('#lessonForm select[name="academicYearId"]');
+    const lessonGroupSel = $('#lessonForm select[name="groupId"]');
+    lessonYearSel.addEventListener('change', () => {
+      lessonGroupSel.innerHTML = groupOptionsHtml(lessonYearSel.value, '');
+    });
+    $('#lessonForm').onsubmit = e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target).entries());
+      data.time = fromTimeInputValue(data.time);
+      if (l) Object.assign(l, data);
+      else state.lessons.push({ id: uid('l'), ...data });
+      saveState(); renderAll(); closeModal(); toast('تم حفظ الحصة');
+    };
+  }
+
+  function openExamForm(id) {
+    const ex = id ? examById(id) : null;
+    const yearId = ex?.academicYearId || activeYearId();
+    const body = `
+      <form id="examForm" class="panel" style="margin:0">
+        <div class="form-grid">
+          <div class="field"><label>الاسم</label><input name="name" required value="${esc(ex?.name || '')}"></div>
+          <div class="field"><label>السنة</label><select name="academicYearId">${state.academicYears.map(y => `<option value="${y.id}" ${yearId === y.id ? 'selected' : ''}>${esc(y.label)}</option>`).join('')}</select></div>
+          <div class="field"><label>المجموعة</label><select name="groupId">${groupOptionsHtml(yearId, ex?.groupId || '')}</select></div>
+          <div class="field"><label>التاريخ</label><input name="date" type="date" value="${esc(ex?.date || new Date().toISOString().slice(0,10))}"></div>
+          <div class="field"><label>الدرجة النهائية</label><input name="fullMark" type="number" min="1" value="${esc(ex?.fullMark || 50)}"></div>
+          <div class="field"><label>المدة بالدقائق</label><input name="duration" type="number" min="1" value="${esc(ex?.duration || 60)}"></div>
+        </div>
+        <div class="field" style="margin-top:10px"><label>ملاحظات</label><textarea name="notes">${esc(ex?.notes || '')}</textarea></div>
+        <div class="controls" style="margin-top:12px">
+          <button class="btn" type="submit">حفظ</button>
+          <button class="btn secondary" type="button" onclick="closeModal()">إلغاء</button>
+        </div>
+      </form>`;
+    openModal(id ? 'تعديل امتحان' : 'امتحان جديد', '', body);
+    const examYearSel = $('#examForm select[name="academicYearId"]');
+    const examGroupSel = $('#examForm select[name="groupId"]');
+    examYearSel.addEventListener('change', () => {
+      examGroupSel.innerHTML = groupOptionsHtml(examYearSel.value, '');
+    });
+    $('#examForm').onsubmit = e => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target).entries());
+      data.fullMark = Number(data.fullMark || 0);
+      data.duration = Number(data.duration || 0);
+      if (ex) Object.assign(ex, data);
+      else state.exams.push({ id: uid('e'), ...data });
+      saveState(); renderAll(); closeModal(); toast('تم حفظ الامتحان');
+    };
+  }
+
+  function openLessonAttendance(id) {
+    const l = lessonById(id);
+    const groupStudents = state.students.filter(s => s.academicYearId === l.academicYearId && s.groupId === l.groupId);
+    const rows = groupStudents.map(s => {
+      const rec = state.attendance.find(a => a.lessonId === id && a.studentId === s.id);
+      return `<tr><td>${esc(s.name)}</td><td>
+        <select data-att="${s.id}">
+          ${['present','absent','late','excused'].map(v => `<option value="${v}" ${rec?.status===v?'selected':''}>${v === 'present' ? 'حاضر' : v === 'absent' ? 'غائب' : v === 'late' ? 'متأخر' : 'بعذر'}</option>`).join('')}
+        </select>
+      </td></tr>`;
+    }).join('');
+    openModal('تسجيل الحضور', `${esc(l.name)} • ${esc(groupById(l.groupId).name || '')}`, `
+      <div class="panel" style="margin:0">
+        <div class="table-wrap"><table><thead><tr><th>الطالب</th><th>الحالة</th></tr></thead><tbody>${rows || '<tr><td colspan="2">لا يوجد طلاب</td></tr>'}</tbody></table></div>
+        <div class="controls" style="margin-top:12px"><button class="btn" onclick="saveLessonAttendance('${id}')">حفظ الحضور</button><button class="btn secondary" onclick="closeModal()">إغلاق</button></div>
+      </div>
+    `);
+  }
+  function openExamDetails(id) {
+    const ex = examById(id);
+    const students = state.students.filter(s => s.academicYearId === ex.academicYearId && s.groupId === ex.groupId);
+    const rows = students.map(s => {
+      const rec = state.examResults.find(r => r.examId === id && r.studentId === s.id);
+      const score = rec?.score ?? '';
+      const pct = rec && ex.fullMark ? Math.round((Number(score) * 100) / Number(ex.fullMark)) : 0;
+      return `<tr><td>${esc(s.name)}</td><td><input type="number" data-score="${s.id}" value="${score}" min="0" max="${ex.fullMark || 100}" style="width:100px"></td><td>${pct}%</td><td>${gradeLabel(pct)}</td></tr>`;
+    }).join('');
+    const scores = students.map(s => {
+      const rec = state.examResults.find(r => r.examId === id && r.studentId === s.id);
+      return rec ? Number(rec.score) : 0;
+    }).filter(n => n > 0);
+    const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0) * 100 / (scores.length * Number(ex.fullMark || 1))) : 0;
+    const max = scores.length ? Math.max(...scores) : 0;
+    const min = scores.length ? Math.min(...scores) : 0;
+    const pass = scores.length ? Math.round(scores.filter(n => n >= (Number(ex.fullMark || 1) * 0.5)).length * 100 / scores.length) : 0;
+    openModal('تفاصيل الامتحان', `${esc(ex.name)} • ${esc(ex.date)}`, `
+      <div class="panel" style="margin:0">
+        <div class="grid-cards">
+          <div class="card"><div class="stat-label">عدد الطلاب</div><div class="stat-value">${students.length}</div></div>
+          <div class="card"><div class="stat-label">أعلى درجة</div><div class="stat-value">${fmt(max)}</div></div>
+          <div class="card"><div class="stat-label">أقل درجة</div><div class="stat-value">${fmt(min)}</div></div>
+          <div class="card"><div class="stat-label">نسبة النجاح</div><div class="stat-value">${pass}%</div></div>
+        </div>
+        <div class="chart-box" style="margin-top:12px">${svgBarChart(examDistribution(id))}</div>
+        <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>الطالب</th><th>الدرجة</th><th>النسبة</th><th>التقدير</th></tr></thead><tbody>${rows || '<tr><td colspan="4">لا توجد درجات</td></tr>'}</tbody></table></div>
+        <div class="controls" style="margin-top:12px"><button class="btn" onclick="saveExamScores('${id}')">حفظ الدرجات</button><button class="btn secondary" onclick="closeModal()">إغلاق</button></div>
+      </div>
+    `);
+    currentExamId = id;
+  }
+  function examDistribution(examId) {
+    const ex = examById(examId);
+    const results = state.examResults.filter(r => r.examId === ex.id);
+    const bins = [0,0,0,0,0];
+    for (const r of results) {
+      const pct = Number(r.score) * 100 / Number(ex.fullMark || 1);
+      if (pct < 50) bins[0]++; else if (pct < 60) bins[1]++; else if (pct < 75) bins[2]++; else if (pct < 90) bins[3]++; else bins[4]++;
+    }
+    return [
+      { label: '<50', value: bins[0] }, { label: '50-59', value: bins[1] }, { label: '60-74', value: bins[2] },
+      { label: '75-89', value: bins[3] }, { label: '90+', value: bins[4] }
+    ];
+  }
+
+  function openLessonAttendanceShortcut() {
+    const first = yearLessons().at(0);
+    if (first) openLessonAttendance(first.id);
+  }
+
+  // actions
+  window.setYear = setActiveYear;
+  window.openStudent = openStudent;
+  window.editStudent = id => openStudentForm(id);
+  window.deleteStudent = id => {
+    if (!confirm('حذف الطالب؟')) return;
+    state.students = state.students.filter(s => s.id !== id);
+    state.guardians = state.guardians.filter(g => g.studentId !== id);
+    state.attendance = state.attendance.filter(a => a.studentId !== id);
+    state.subscriptions = state.subscriptions.filter(s => s.studentId !== id);
+    state.examResults = state.examResults.filter(r => r.studentId !== id);
+    state.notes = state.notes.filter(n => n.studentId !== id);
+    saveState(); renderAll(); toast('تم حذف الطالب');
+  };
+  window.editGroup = id => openGroupForm(id);
+  window.deleteGroup = id => {
+    if (!confirm('حذف المجموعة؟')) return;
+    state.groups = state.groups.filter(g => g.id !== id);
+    state.students.filter(s => s.groupId === id).forEach(s => s.groupId = '');
+    state.lessons = state.lessons.filter(l => l.groupId !== id);
+    state.exams = state.exams.filter(e => e.groupId !== id);
+    state.subscriptions = state.subscriptions.filter(s => s.groupId !== id);
+    saveState(); renderAll(); toast('تم حذف المجموعة');
+  };
+  window.openLesson = id => openLessonAttendance(id);
+  window.editLesson = id => openLessonForm(id);
+  window.deleteLesson = id => {
+    if (!confirm('حذف الحصة؟')) return;
+    state.lessons = state.lessons.filter(l => l.id !== id);
+    state.attendance = state.attendance.filter(a => a.lessonId !== id);
+    saveState(); renderAll(); toast('تم حذف الحصة');
+  };
+  window.openExam = id => openExamDetails(id);
+  window.editExam = id => openExamForm(id);
+  window.deleteExam = id => {
+    if (!confirm('حذف الامتحان؟')) return;
+    state.exams = state.exams.filter(e => e.id !== id);
+    state.examResults = state.examResults.filter(r => r.examId !== id);
+    saveState(); renderAll(); toast('تم حذف الامتحان');
+  };
+  function openPaymentDialog(subscriptionId) {
+    const s = state.subscriptions.find(x => x.id === subscriptionId);
+    if (!s) return;
+    const remaining = Math.max(0, Number(s.dueAmount || 0) - Number(s.paidAmount || 0));
+    openModal('تسجيل دفعة', `${esc(studentById(s.studentId).name || '')} • ${esc(s.month)}`, `
+      <form id="paymentForm" class="panel" style="margin:0">
+        <div class="form-grid">
+          <div class="field"><label>المبلغ</label><input name="amount" type="number" min="0" step="1" value="${remaining}"></div>
+          <div class="field"><label>طريقة الدفع</label><select name="paymentMethod">${optionsHtml(PAYMENT_METHOD_OPTIONS, s.paymentMethod || '', true, 'اختر الطريقة')}</select></div>
+          <div class="field"><label>تاريخ الدفع</label><input name="paidAt" type="date" value="${s.paidAt || new Date().toISOString().slice(0,10)}"></div>
+          <div class="field"><label>ملاحظات</label><input name="notes" value="${esc(s.notes || '')}"></div>
+        </div>
+        <div class="controls" style="margin-top:12px">
+          <button class="btn" type="submit">حفظ</button>
+          <button class="btn danger" type="button" id="cancelPaymentBtn">إلغاء السداد</button>
+          <button class="btn secondary" type="button" onclick="closeModal()">إغلاق</button>
+        </div>
+      </form>
+    `);
+    const applyPayment = () => {
+      const fd = new FormData($('#paymentForm'));
+      const amount = Math.max(0, Number(fd.get('amount') || 0));
+      const due = Number(s.dueAmount || 0);
+      const nextPaid = Math.min(due, Number(s.paidAmount || 0) + amount);
+      s.paidAmount = nextPaid;
+      s.paidAt = String(fd.get('paidAt') || new Date().toISOString().slice(0,10));
+      s.paymentMethod = String(fd.get('paymentMethod') || '');
+      s.notes = String(fd.get('notes') || '');
+      s.status = nextPaid <= 0 ? 'unpaid' : nextPaid >= due ? 'paid' : 'late';
+      saveState(); renderAll(); closeModal(); toast('تم تسجيل الدفعة');
+    };
+    $('#paymentForm').onsubmit = e => { e.preventDefault(); applyPayment(); };
+    $('#cancelPaymentBtn').onclick = () => {
+      if (!confirm('إلغاء السداد بالكامل لهذه الشهر؟')) return;
+      s.paidAmount = 0;
+      s.paidAt = '';
+      s.paymentMethod = '';
+      s.status = 'unpaid';
+      s.notes = '';
+      saveState(); renderAll(); closeModal(); toast('تم إلغاء السداد بالكامل');
+    };
+  }
+  window.markPaid = id => openPaymentDialog(id);
+  window.deleteSubscription = id => {
+    if (!confirm('حذف الاشتراك؟')) return;
+    state.subscriptions = state.subscriptions.filter(s => s.id !== id);
+    saveState(); renderAll(); toast('تم حذف الاشتراك');
+  };
+  window.addNote = studentId => {
+    const content = prompt('اكتب الملاحظة:');
+    if (!content) return;
+    state.notes.push({ id: uid('n'), studentId, content });
+    saveState(); openStudent(studentId); renderAll(); toast('تمت إضافة الملاحظة');
+  };
+  window.deleteNote = id => {
+    const note = state.notes.find(n => n.id === id);
+    state.notes = state.notes.filter(n => n.id !== id);
+    saveState(); if (note) openStudent(note.studentId); renderAll(); toast('تم حذف الملاحظة');
+  };
+  window.saveLessonAttendance = id => {
+    const inputs = $$('[data-att]');
+    for (const sel of inputs) {
+      const studentId = sel.getAttribute('data-att');
+      const status = sel.value;
+      let rec = state.attendance.find(a => a.lessonId === id && a.studentId === studentId);
+      if (!rec) state.attendance.push(rec = { id: uid('att'), lessonId: id, studentId, status, notes: '' });
+      else rec.status = status;
+    }
+    saveState(); renderAll(); if (currentPage === 'lessons') renderLessons(); toast('تم حفظ الحضور');
+  };
+  window.saveExamScores = id => {
+    const inputs = $$('[data-score]');
+    for (const inp of inputs) {
+      const studentId = inp.getAttribute('data-score');
+      const score = Number(inp.value || 0);
+      let rec = state.examResults.find(r => r.examId === id && r.studentId === studentId);
+      if (!rec) state.examResults.push(rec = { id: uid('r'), examId: id, studentId, score });
+      else rec.score = score;
+    }
+    saveState(); renderAll(); if (currentExamId === id) openExamDetails(id); toast('تم حفظ الدرجات');
+  };
+  window.setReport = type => { currentReport = type; renderReports(); };
+  window.openMonthReport = openMonthReport;
+  window.closeModal = closeModal;
+  window.openLessonAttendanceShortcut = openLessonAttendanceShortcut;
+  window.showPage = showPage;
+
+  function showPage(page) {
+    currentPage = page;
+    $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+    $$('.section').forEach(sec => sec.classList.remove('active'));
+    $('#' + page).classList.add('active');
+    if (page === 'reports') renderReports();
+    if (page === 'monthArchive') renderMonthArchive();
+    if (page === 'dashboard') renderDashboard();
+  }
+
+  function bindEvents() {
+    $('#loginBtn').onclick = async () => {
+      const email = $('#loginUser').value.trim();
+      const pass = $('#loginPass').value.trim();
+      if (!email || !pass) return toast('اكتب الإيميل وكلمة المرور');
+      const btn = $('#loginBtn');
+      btn.disabled = true;
+      try {
+        await signInWithEmailAndPassword(auth, email, pass);
+      } catch (err) {
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/invalid-login-credentials') {
+          try {
+            await createUserWithEmailAndPassword(auth, email, pass);
+            toast('تم إنشاء حساب جديد وتسجيل الدخول');
+          } catch (err2) {
+            toast('خطأ: ' + err2.message);
+          }
+        } else {
+          toast('خطأ في تسجيل الدخول: ' + err.message);
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    };
+    $('#logoutBtn').onclick = () => signOut(auth);
+    $('#testFbBtn').onclick = () => testFirebaseConnection();
+    $('#toggleTheme').onclick = () => {
+      state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
+      document.body.setAttribute('data-theme', state.settings.theme);
+      saveState(); renderAll();
+    };
+    $('#backupBtn').onclick = () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'teacher-management-backup.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast('تم إنشاء نسخة احتياطية');
+    };
+    $('#globalSearch').addEventListener('input', () => { renderAll(); });
+    $('#studentYearFilter').addEventListener('change', () => { fillFilters(); renderStudents(); });
+    $('#studentGroupFilter').addEventListener('change', renderStudents);
+    $('#subscriptionStatusFilter').addEventListener('change', renderSubscriptions);
+    $('#themeSelect').addEventListener('change', e => { state.settings.theme = e.target.value; document.body.setAttribute('data-theme', state.settings.theme); saveState(); renderAll(); });
+    $('#defaultFee').addEventListener('change', e => { state.settings.defaultFee = Number(e.target.value || 0); saveState(); toast('تم حفظ القيمة الافتراضية'); });
+    $('#changePassBtn').onclick = async () => {
+      const v = $('#newPass').value.trim();
+      if (v.length < 6) return toast('كلمة المرور لازم تكون 6 حروف/أرقام على الأقل');
+      try {
+        await updatePassword(auth.currentUser, v);
+        $('#newPass').value = '';
+        toast('تم تغيير كلمة المرور');
+      } catch (err) {
+        if (err.code === 'auth/requires-recent-login') {
+          toast('لازم تسجل خروج ودخول تاني قبل تغيير الباسورد');
+        } else {
+          toast('خطأ: ' + err.message);
+        }
+      }
+    };
+    $('#exportJsonBtn').onclick = () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'teacher-management-data.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    $('#importJsonBtn').onclick = () => $('#importFile').click();
+    $('#importFile').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          state = normalizeState(mergeSeed(parsed, seed));
+          saveState();
+          renderAll();
+          toast('تم استيراد البيانات');
+        } catch {
+          toast('ملف غير صالح');
+        }
+      };
+      reader.readAsText(file);
+    });
+    $('#addStudentBtn').onclick = () => openStudentForm();
+    $('#addGroupBtn').onclick = () => openGroupForm();
+    $('#addLessonBtn').onclick = () => openLessonForm();
+    $('#addExamBtn').onclick = () => openExamForm();
+    $('#addPaymentBtn').onclick = () => {
+      const s = yearSubs().find(x => x.status !== 'paid');
+      if (!s) return toast('لا توجد اشتراكات متأخرة');
+      openPaymentDialog(s.id);
+    };
+    $('#printRevenueBtn').onclick = () => window.print();
+    $('#printArchiveBtn').onclick = () => window.print();
+    $('#printCurrentReportBtn').onclick = () => window.print();
+    $('#exportStudentsBtn').onclick = () => {
+      const rows = [['Code','Name','Year','Group','Phone','School','Address']];
+      for (const s of yearStudents()) rows.push([s.code, s.name, yearById(s.academicYearId).label || '', groupById(s.groupId).name || '', s.phone, s.schoolName, s.address]);
+      const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'students.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    $('#printAllQrBtn').onclick = () => {
+      const list = yearStudents();
+      if (!list.length) return toast('لا يوجد طلاب في هذه السنة');
+      printStudentQRCards(list);
+    };
+
+    $('#nav').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-page]');
+      if (btn) showPage(btn.dataset.page);
+    });
+    $('#modalClose').onclick = closeModal;
+    $('#modalBackdrop').addEventListener('click', e => { if (e.target === $('#modalBackdrop')) closeModal(); });
+    $$('.section th[data-sort]').forEach(th => th.addEventListener('click', () => {
+      const key = th.getAttribute('data-sort');
+      currentSort.dir = currentSort.key === key && currentSort.dir === 'asc' ? 'desc' : 'asc';
+      currentSort.key = key;
+      renderStudents();
+    }));
+  }
+
+  function renderAll() {
+    document.body.setAttribute('data-theme', state.settings.theme);
+    $('#themeSelect').value = state.settings.theme;
+    $('#settingsUser').value = currentUser ? currentUser.email : '';
+    $('#defaultFee').value = state.settings.defaultFee;
+    fillYearButtons();
+    fillFilters();
+    renderDashboard();
+    renderStudents();
+    renderGroups();
+    renderLessons();
+    renderExams();
+    renderSubscriptions();
+    renderMonthArchive();
+    renderReports();
+    saveState();
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      currentUser = user;
+      $('#loginBtn').disabled = true;
+      $('#loginHint').textContent = 'جاري تحميل بياناتك...';
+      await loadStateForUser(user.uid);
+      $('#loginView').style.display = 'none';
+      $('#appView').style.display = 'grid';
+      renderAll();
+      toast('مرحبًا بك');
+    } else {
+      currentUser = null;
+      currentDocRef = null;
+      $('#loginBtn').disabled = false;
+      $('#loginView').style.display = 'grid';
+      $('#appView').style.display = 'none';
+    }
+  });
+
+  function addNoteAction() {}
+  function gradeLabelByScore(pct) {
+    if (pct >= 90) return 'A';
+    if (pct >= 80) return 'B';
+    if (pct >= 70) return 'C';
+    if (pct >= 60) return 'D';
+    return 'F';
+  }
+
+  window.gradeLabel = gradeLabelByScore;
+
+  // expose helper for templates
+  window.openStudent = openStudent;
+  window.openLessonAttendanceShortcut = openLessonAttendanceShortcut;
+
+  bindEvents();
+  document.body.setAttribute('data-theme', state.settings.theme);
+
+})();
+</script>
+
+</body>
+</html>
