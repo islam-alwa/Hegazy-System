@@ -401,8 +401,13 @@
         <div class="brand-badge">T</div>
         <div>
           <h1>Teacher Management System</h1>
-          <p id="sidebarSub">Offline local app</p>
+          <p id="sidebarSub">متصل بـ Firebase</p>
         </div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="subtle">مسجل الدخول الآن</div>
+        <div id="whoAmI" style="margin-top:6px;font-weight:700"></div>
       </div>
 
       <div class="nav" id="nav">
@@ -425,7 +430,7 @@
       <div class="sidebar-card">
         <div class="chip">السنة الحالية: <strong id="currentYearLabel"></strong></div>
         <div style="height:10px"></div>
-        <small>كل البيانات محفوظة محليًا داخل المتصفح.</small>
+        <small>كل البيانات متزامنة أونلاين عبر Firebase.</small>
       </div>
       <div class="sidebar-card">
         <small>Tip</small>
@@ -824,6 +829,21 @@
     </div>
   </div>
 
+  <div id="teacherView" class="login" style="display:none">
+    <div class="login-card" style="text-align:center">
+      <div class="brand-badge" style="margin:0 auto 14px">T</div>
+      <div class="subtle" id="teacherWhoAmI" style="margin-bottom:6px"></div>
+      <h2>إجمالي الفلوس المحصلة</h2>
+      <div id="teacherTotalMoney" style="font-size:44px;font-weight:800;margin:18px 0">—</div>
+      <p class="footer-note" id="teacherUpdatedAt"></p>
+      <div class="controls" style="justify-content:center;margin-top:16px">
+        <span class="icon-btn" id="teacherFbStatus" title="حالة Firebase">●</span>
+        <button class="btn secondary" id="teacherRefreshBtn">تحديث</button>
+        <button class="btn secondary" id="teacherLogoutBtn">خروج</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -948,6 +968,7 @@
   let state = structuredClone(seed);
   let currentUser = null;
   let currentDocRef = null;
+  let currentRole = null;
   let currentPage = 'dashboard';
   let currentYearId = state.settings.currentYearId || 'y1';
   let currentSort = { key: 'name', dir: 'asc' };
@@ -1023,7 +1044,7 @@
     setFbStatus(null, 'جاري الفحص...');
     if (!currentUser) { setFbStatus(false, 'لازم تسجل الدخول الأول'); return; }
     try {
-      const testRef = doc(db, 'users', currentUser.uid, 'appData', 'connectionTest');
+      const testRef = doc(db, 'system', 'main', 'appData', 'connectionTest');
       const stamp = Date.now();
       await setDoc(testRef, { pingedAt: stamp, at: serverTimestamp() });
       const snap = await getDocFromServer(testRef);
@@ -1036,22 +1057,65 @@
       setFbStatus(false, 'فشل الاتصال: ' + err.message);
     }
   }
+  function computeTotalMoney() {
+    return (state.subscriptions || []).reduce((sum, s) => sum + (Number(s.paidAmount) || 0), 0);
+  }
+  async function pushTotalMoney() {
+    try {
+      await setDoc(doc(db, 'system', 'main', 'appData', 'totalMoney'), { total: computeTotalMoney(), updatedAt: Date.now() });
+    } catch (err) { /* non-fatal, teacher view will just show a stale number */ }
+  }
+  const ARABIC_DAY_INDEX = { 'الأحد': 0, 'الاحد': 0, 'الاثنين': 1, 'الثلاثاء': 2, 'الأربعاء': 3, 'الاربعاء': 3, 'الخميس': 4, 'الجمعة': 5, 'السبت': 6 };
+  function autoGenerateMonthlyLessons() {
+    const now = new Date();
+    const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    let changed = false;
+    for (const g of state.groups) {
+      const already = (state.lessons || []).filter(l => l.groupId === g.id && l.auto && l.month === ym);
+      if (already.length > 0) continue; // already generated this month for this group
+      const dayIdx = ARABIC_DAY_INDEX[g.dayOfWeek];
+      if (dayIdx === undefined) continue;
+      const dates = [];
+      let d = new Date(now.getFullYear(), now.getMonth(), 1);
+      while (d.getMonth() === now.getMonth()) {
+        if (d.getDay() === dayIdx) dates.push(new Date(d));
+        d.setDate(d.getDate() + 1);
+      }
+      dates.slice(0, 4).forEach((dt, idx) => {
+        state.lessons.push({
+          id: 'lauto' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+          academicYearId: g.academicYearId, groupId: g.id,
+          name: `حصة ${idx + 1} - ${g.name}`, date: dt.toISOString().slice(0, 10),
+          time: g.time, title: '', notes: '', auto: true, month: ym
+        });
+        changed = true;
+      });
+    }
+    if (changed) { saveState(); toast('تم توليد حصص الشهر تلقائيًا للمجموعات'); }
+  }
   function saveState() {
     state.settings.currentYearId = activeYearId();
     if (!currentDocRef) return;
     setDoc(currentDocRef, state)
-      .then(() => setFbStatus(true, 'متصل - آخر حفظ نجح'))
+      .then(() => { setFbStatus(true, 'متصل - آخر حفظ نجح'); pushTotalMoney(); })
       .catch(err => { toast('فشل الحفظ: ' + err.message); setFbStatus(false, 'فشل الحفظ: ' + err.message); });
   }
-  async function loadStateForUser(uid) {
-    currentDocRef = doc(db, 'users', uid, 'appData', 'state');
+  async function loadStateForUser() {
+    currentDocRef = doc(db, 'system', 'main', 'appData', 'state');
     try {
       const snap = await getDoc(currentDocRef);
       if (snap.exists()) {
         state = normalizeState(mergeSeed(snap.data(), seed));
       } else {
-        state = normalizeState(structuredClone(seed));
+        // one-time migration: pull this account's old private data if it exists
+        let migrated = null;
+        try {
+          const oldSnap = await getDoc(doc(db, 'users', currentUser.uid, 'appData', 'state'));
+          if (oldSnap.exists()) migrated = oldSnap.data();
+        } catch { /* no old data / no access, ignore */ }
+        state = migrated ? normalizeState(mergeSeed(migrated, seed)) : normalizeState(structuredClone(seed));
         await setDoc(currentDocRef, state);
+        if (migrated) toast('تم نقل بياناتك القديمة للحساب المشترك الجديد');
       }
       setFbStatus(true, 'متصل - تم تحميل البيانات بنجاح');
     } catch (err) {
@@ -2114,6 +2178,8 @@
       }
     };
     $('#logoutBtn').onclick = () => signOut(auth);
+    $('#teacherLogoutBtn').onclick = () => signOut(auth);
+    $('#teacherRefreshBtn').onclick = () => loadTeacherTotals();
     $('#testFbBtn').onclick = () => testFirebaseConnection();
     $('#toggleTheme').onclick = () => {
       state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
@@ -2237,24 +2303,70 @@
     saveState();
   }
 
+  const ROLE_LABELS = { manager: 'الاسستنت', teacher: 'المستر' };
+  function hideAllViews() {
+    $('#loginView').style.display = 'none';
+    $('#appView').style.display = 'none';
+    $('#teacherView').style.display = 'none';
+  }
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       currentUser = user;
       $('#loginBtn').disabled = true;
-      $('#loginHint').textContent = 'جاري تحميل بياناتك...';
-      await loadStateForUser(user.uid);
-      $('#loginView').style.display = 'none';
-      $('#appView').style.display = 'grid';
-      renderAll();
-      toast('مرحبًا بك');
+      $('#loginHint').textContent = 'جاري التحقق من الصلاحية...';
+      let role = null;
+      try {
+        const roleSnap = await getDoc(doc(db, 'system', 'main', 'members', user.uid));
+        role = roleSnap.exists() ? roleSnap.data().role : null;
+      } catch (err) {
+        toast('فشل التحقق من الصلاحية: ' + err.message);
+      }
+      currentRole = role;
+      const who = `${user.email} — ${ROLE_LABELS[role] || 'صلاحية غير معروفة'}`;
+
+      if (role === 'manager') {
+        $('#loginHint').textContent = 'جاري تحميل بياناتك...';
+        await loadStateForUser();
+        hideAllViews();
+        $('#appView').style.display = 'grid';
+        $('#whoAmI').textContent = who;
+        renderAll();
+        autoGenerateMonthlyLessons();
+        toast('مرحبًا بك يا ' + ROLE_LABELS.manager);
+      } else if (role === 'teacher') {
+        hideAllViews();
+        $('#teacherView').style.display = 'grid';
+        $('#teacherWhoAmI').textContent = who;
+        await loadTeacherTotals();
+      } else {
+        toast('حسابك لسه مش متسجل له صلاحية. كلم مدير النظام يضيفك.');
+        await signOut(auth);
+      }
+      $('#loginBtn').disabled = false;
     } else {
       currentUser = null;
       currentDocRef = null;
+      currentRole = null;
       $('#loginBtn').disabled = false;
+      hideAllViews();
       $('#loginView').style.display = 'grid';
-      $('#appView').style.display = 'none';
     }
   });
+  async function loadTeacherTotals() {
+    const dot = document.getElementById('teacherFbStatus');
+    try {
+      const snap = await getDoc(doc(db, 'system', 'main', 'appData', 'totalMoney'));
+      const total = snap.exists() ? (snap.data().total || 0) : 0;
+      const updatedAt = snap.exists() && snap.data().updatedAt ? new Date(snap.data().updatedAt) : null;
+      $('#teacherTotalMoney').textContent = total.toLocaleString('ar-EG') + ' جنيه';
+      $('#teacherUpdatedAt').textContent = updatedAt ? ('آخر تحديث: ' + updatedAt.toLocaleString('ar-EG')) : '';
+      if (dot) dot.style.color = '#22c55e';
+    } catch (err) {
+      $('#teacherTotalMoney').textContent = '—';
+      $('#teacherUpdatedAt').textContent = 'تعذر التحميل: ' + err.message;
+      if (dot) dot.style.color = '#ef4444';
+    }
+  }
 
   function addNoteAction() {}
   function gradeLabelByScore(pct) {
