@@ -1,8 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function isSignedIn() { return request.auth != null; }
+    function myRole() {
+      return get(/databases/$(database)/documents/system/main/members/$(request.auth.uid)).data.role;
+    }
+
+    // Role registry - who is 'manager' (الاسستنت) vs 'teacher' (المستر).
+    // Only editable manually from the Firebase Console (never from the app).
+    match /system/main/members/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Full app data - assistant (manager) only.
+    match /system/main/appData/state {
+      allow read, write: if isSignedIn() && myRole() == 'manager';
+    }
+
+    // Just the running total - teacher can read, assistant can read/write.
+    match /system/main/appData/totalMoney {
+      allow read: if isSignedIn() && (myRole() == 'manager' || myRole() == 'teacher');
+      allow write: if isSignedIn() && myRole() == 'manager';
+    }
+
+    // Connection test doc used by the "اختبار الاتصال" button - assistant only.
+    match /system/main/appData/connectionTest {
+      allow read, write: if isSignedIn() && myRole() == 'manager';
+    }
+
+    // Legacy per-account docs (from before roles existed) - kept readable by their
+    // own owner only, so the one-time migration in the app can still read them.
+    match /users/{uid}/appData/{doc} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
     }
   }
 }
