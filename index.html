@@ -829,21 +829,6 @@
     </div>
   </div>
 
-  <div id="teacherView" class="login" style="display:none">
-    <div class="login-card" style="text-align:center">
-      <div class="brand-badge" style="margin:0 auto 14px">T</div>
-      <div class="subtle" id="teacherWhoAmI" style="margin-bottom:6px"></div>
-      <h2>إجمالي الفلوس المحصلة</h2>
-      <div id="teacherTotalMoney" style="font-size:44px;font-weight:800;margin:18px 0">—</div>
-      <p class="footer-note" id="teacherUpdatedAt"></p>
-      <div class="controls" style="justify-content:center;margin-top:16px">
-        <span class="icon-btn" id="teacherFbStatus" title="حالة Firebase">●</span>
-        <button class="btn secondary" id="teacherRefreshBtn">تحديث</button>
-        <button class="btn secondary" id="teacherLogoutBtn">خروج</button>
-      </div>
-    </div>
-  </div>
-
   <div class="toast" id="toast"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -957,7 +942,8 @@
       { id: 'r3', examId: 'e2', studentId: 's3', score: 51 },
       { id: 'r4', examId: 'e3', studentId: 's4', score: 63 }
     ],
-    notes: [{ id: 'n1', studentId: 's4', content: 'Excellent performance and attendance.' }]
+    notes: [{ id: 'n1', studentId: 's4', content: 'Excellent performance and attendance.' }],
+    paymentStatus: []
   };
 
   const { auth, db, doc, getDoc, setDoc, getDocFromServer, serverTimestamp, onAuthStateChanged, signInWithEmailAndPassword,
@@ -968,6 +954,7 @@
   let state = structuredClone(seed);
   let currentUser = null;
   let currentDocRef = null;
+  let currentMoneyDocRef = null;
   let currentRole = null;
   let currentPage = 'dashboard';
   let currentYearId = state.settings.currentYearId || 'y1';
@@ -1057,13 +1044,67 @@
       setFbStatus(false, 'فشل الاتصال: ' + err.message);
     }
   }
-  function computeTotalMoney() {
-    return (state.subscriptions || []).reduce((sum, s) => sum + (Number(s.paidAmount) || 0), 0);
+  function isTeacher() { return currentRole === 'teacher'; }
+  function stripMoneyFromState(src) {
+    const { subscriptions, ...rest } = src;
+    return { ...rest, groups: (rest.groups || []).map(({ fee, ...g }) => g) };
   }
-  async function pushTotalMoney() {
+  function autoGenerateMonthlyPaymentStatus() {
+    const now = new Date();
+    const month = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    state.paymentStatus = state.paymentStatus || [];
+    let changed = false;
+    for (const s of state.students) {
+      if (state.paymentStatus.some(p => p.studentId === s.id && p.month === month)) continue;
+      state.paymentStatus.push({ id: 'pay' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), studentId: s.id, groupId: s.groupId, academicYearId: s.academicYearId, month, status: 'unpaid', paidAt: '', paymentMethod: '' });
+      changed = true;
+    }
+    if (changed) saveState();
+  }
+  async function loadMoneyForTeacher() {
+    if (!isTeacher()) {
+      state.subscriptions = [];
+      for (const g of state.groups) g.fee = undefined;
+      return;
+    }
+    currentMoneyDocRef = doc(db, 'system', 'main', 'appData', 'money');
     try {
-      await setDoc(doc(db, 'system', 'main', 'appData', 'totalMoney'), { total: computeTotalMoney(), updatedAt: Date.now() });
-    } catch (err) { /* non-fatal, teacher view will just show a stale number */ }
+      const snap = await getDoc(currentMoneyDocRef);
+      const groupFees = {};
+      let firstRun = false;
+      if (snap.exists()) {
+        const data = snap.data();
+        state.subscriptions = Array.isArray(data.subscriptions) ? data.subscriptions : [];
+        Object.assign(groupFees, data.groupFees || {});
+      } else {
+        state.subscriptions = structuredClone(seed.subscriptions);
+        firstRun = true;
+      }
+      for (const g of state.groups) g.fee = groupFees[g.id] ?? state.settings.defaultFee;
+      // reconcile: fold in any payment marked by the assistant (status only, no amounts known to them)
+      let reconciled = false;
+      for (const p of state.paymentStatus || []) {
+        let sub = state.subscriptions.find(s => s.studentId === p.studentId && s.month === p.month);
+        if (!sub) {
+          const g = groupById(p.groupId);
+          sub = { id: p.id, academicYearId: p.academicYearId, studentId: p.studentId, groupId: p.groupId, month: p.month, dueAmount: Number(g.fee || state.settings.defaultFee), paidAmount: 0, status: 'unpaid', dueDate: `${p.month}-01`, paidAt: '', paymentMethod: '', notes: '' };
+          state.subscriptions.push(sub);
+          reconciled = true;
+        }
+        if (p.status !== sub.status) {
+          sub.status = p.status;
+          if (p.paidAt) sub.paidAt = p.paidAt;
+          if (p.paymentMethod) sub.paymentMethod = p.paymentMethod;
+          if (p.status === 'paid') sub.paidAmount = Number(sub.dueAmount || 0);
+          if (p.status === 'unpaid') sub.paidAmount = 0;
+          reconciled = true;
+        }
+      }
+      if (reconciled || firstRun) saveState();
+    } catch (err) {
+      toast('فشل تحميل بيانات الفلوس: ' + err.message);
+      state.subscriptions = [];
+    }
   }
   const ARABIC_DAY_INDEX = { 'الأحد': 0, 'الاحد': 0, 'الاثنين': 1, 'الثلاثاء': 2, 'الأربعاء': 3, 'الاربعاء': 3, 'الخميس': 4, 'الجمعة': 5, 'السبت': 6 };
   function autoGenerateMonthlyLessons() {
@@ -1096,9 +1137,14 @@
   function saveState() {
     state.settings.currentYearId = activeYearId();
     if (!currentDocRef) return;
-    setDoc(currentDocRef, state)
-      .then(() => { setFbStatus(true, 'متصل - آخر حفظ نجح'); pushTotalMoney(); })
+    setDoc(currentDocRef, stripMoneyFromState(state))
+      .then(() => setFbStatus(true, 'متصل - آخر حفظ نجح'))
       .catch(err => { toast('فشل الحفظ: ' + err.message); setFbStatus(false, 'فشل الحفظ: ' + err.message); });
+    if (isTeacher() && currentMoneyDocRef) {
+      const groupFees = Object.fromEntries((state.groups || []).map(g => [g.id, Number(g.fee || 0)]));
+      setDoc(currentMoneyDocRef, { subscriptions: state.subscriptions || [], groupFees })
+        .catch(err => toast('فشل حفظ بيانات الفلوس: ' + err.message));
+    }
   }
   async function loadStateForUser() {
     currentDocRef = doc(db, 'system', 'main', 'appData', 'state');
@@ -1114,14 +1160,17 @@
           if (oldSnap.exists()) migrated = oldSnap.data();
         } catch { /* no old data / no access, ignore */ }
         state = migrated ? normalizeState(mergeSeed(migrated, seed)) : normalizeState(structuredClone(seed));
-        await setDoc(currentDocRef, state);
+        await setDoc(currentDocRef, stripMoneyFromState(state));
         if (migrated) toast('تم نقل بياناتك القديمة للحساب المشترك الجديد');
       }
+      autoGenerateMonthlyPaymentStatus();
+      await loadMoneyForTeacher();
       setFbStatus(true, 'متصل - تم تحميل البيانات بنجاح');
     } catch (err) {
       toast('فشل تحميل البيانات: ' + err.message);
       setFbStatus(false, 'فشل الاتصال: ' + err.message);
       state = normalizeState(structuredClone(seed));
+      state.subscriptions = [];
     }
   }
   function mergeSeed(parsed, base) {
@@ -1362,8 +1411,7 @@
       ['حاضر اليوم', present, 'داخل حصص اليوم', 'ok'],
       ['غائب اليوم', absent, 'داخل حصص اليوم', 'bad'],
       ['متأخر اليوم', late, 'داخل حصص اليوم', 'warn'],
-      ['غير مسددين', unpaid, 'اشتراكات متأخرة', 'info'],
-      ['إيرادات الشهر', `$${fmt(revenue)}`, 'الشهر الحالي', 'ok'],
+      ...(isTeacher() ? [['غير مسددين', unpaid, 'اشتراكات متأخرة', 'info'], ['إيرادات الشهر', `$${fmt(revenue)}`, 'الشهر الحالي', 'ok']] : []),
       ['متوسط آخر امتحان', `${calcDashboardExamAverage(yearId)}%`, lastExam ? lastExam.name : 'لا توجد اختبارات كافية', 'warn'],
       ['أعلى طالب', topStudent ? topStudent.name : '—', topStudent ? `${topStudent.pct}%` : 'لا توجد بيانات', 'info'],
       ['آخر حصة', lastLesson ? lastLesson.name : '—', lastLesson ? `${lastLesson.title} • ${lastLesson.date}` : 'لا توجد حصص', 'ok']
@@ -1376,7 +1424,9 @@
       </div>
     `).join('');
     $('#monthlyRevenueLabel').textContent = `${activeYear().label || ''} • ${month}`;
-    $('#revenueChart').innerHTML = svgBarChart(chartRevenue(yearId), { valuePrefix: '$' });
+    const revenueCard = $('#monthlyRevenueLabel').closest('.card, .panel');
+    if (revenueCard) revenueCard.style.display = isTeacher() ? '' : 'none';
+    if (isTeacher()) $('#revenueChart').innerHTML = svgBarChart(chartRevenue(yearId), { valuePrefix: '$' });
     $('#attendanceChart').innerHTML = svgDonut(chartAttendance(yearId));
     $('#yearsChart').innerHTML = svgBarChart(chartGroupDist(yearId));
     $('#gradesChart').innerHTML = svgLineChart(chartGradeTrend(yearId));
@@ -1397,7 +1447,7 @@
     });
     $('#studentsTable').innerHTML = items.map(s => {
       const a = calcAttendanceStats(s.id), sub = calcSubscriptionStats(s.id);
-      const status = sub.remaining <= 0 ? '<span class="status ok">مدفوع</span>' : sub.paid > 0 ? '<span class="status warn">متأخر</span>' : '<span class="status bad">غير مدفوع</span>';
+      const status = !isTeacher() ? '<span class="status info">—</span>' : sub.remaining <= 0 ? '<span class="status ok">مدفوع</span>' : sub.paid > 0 ? '<span class="status warn">متأخر</span>' : '<span class="status bad">غير مدفوع</span>';
       return `<tr>
         <td>${esc(s.code)}</td><td>${esc(s.name)}</td><td>${esc(yearById(s.academicYearId).label || '')}</td><td>${esc(groupById(s.groupId).name || '')}</td><td>${esc(s.phone || '')}</td>
         <td><span class="status info">${a.pct}%</span></td>
@@ -1406,6 +1456,7 @@
           <button class="btn secondary" onclick="openStudent('${s.id}')">عرض</button>
           <button class="btn secondary" onclick="editStudent('${s.id}')">تعديل</button>
           <button class="btn secondary" onclick="printStudentQR('${s.id}')">QR</button>
+          ${!isTeacher() ? `<button class="btn secondary" onclick="openPaymentStatusDialog('${s.id}')">تسجيل الدفعة</button>` : ''}
           <button class="btn danger" onclick="deleteStudent('${s.id}')">حذف</button>
         </td>
       </tr>`;
@@ -1433,7 +1484,7 @@
     }).join('');
     $('#groupsTable').innerHTML = groups.map(g => {
       const cnt = state.students.filter(s => s.academicYearId === g.academicYearId && s.groupId === g.id).length;
-      return `<tr><td>${esc(g.name)}</td><td>${esc(yearById(g.academicYearId).label || '')}</td><td>${esc(g.dayOfWeek)}</td><td>${esc(g.time)}</td><td>${cnt}</td><td>${g.lessonCount || state.settings.lessonsPerMonth || 4}</td><td>$${fmt(g.fee || 0)}</td><td><button class="btn secondary" onclick="editGroup('${g.id}')">تعديل</button> <button class="btn danger" onclick="deleteGroup('${g.id}')">حذف</button></td></tr>`;
+      return `<tr><td>${esc(g.name)}</td><td>${esc(yearById(g.academicYearId).label || '')}</td><td>${esc(g.dayOfWeek)}</td><td>${esc(g.time)}</td><td>${cnt}</td><td>${g.lessonCount || state.settings.lessonsPerMonth || 4}</td><td>${isTeacher() ? '$' + fmt(g.fee || 0) : '🔒'}</td><td><button class="btn secondary" onclick="editGroup('${g.id}')">تعديل</button> <button class="btn danger" onclick="deleteGroup('${g.id}')">حذف</button></td></tr>`;
     }).join('') || '<tr><td colspan="8" class="muted">لا توجد مجموعات.</td></tr>';
   }
 
@@ -1611,7 +1662,7 @@
     if (type === 'group') return groupReportHtml(yearGroups().at(0)?.id);
     if (type === 'year') return yearReportHtml(activeYearId());
     if (type === 'attendance') return `<div class="panel"><h3>تقرير الحضور</h3>${svgDonut(chartAttendance())}</div>`;
-    if (type === 'subscriptions') return `<div class="panel"><h3>تقرير الاشتراكات</h3><p>مدفوع: ${yearSubs().filter(s=>s.status==='paid').length}</p><p>غير مدفوع: ${yearSubs().filter(s=>s.status==='unpaid').length}</p><p>متأخر: ${yearSubs().filter(s=>s.status==='late').length}</p><p>الإيرادات: $${fmt(yearSubs().reduce((a,b)=>a+Number(b.paidAmount||0),0))}</p></div>`;
+    if (type === 'subscriptions') return `<div class="panel"><h3>تقرير الاشتراكات</h3><p>مدفوع: ${yearSubs().filter(s=>s.status==='paid').length}</p><p>غير مدفوع: ${yearSubs().filter(s=>s.status==='unpaid').length}</p><p>متأخر: ${yearSubs().filter(s=>s.status==='late').length}</p><p>الإيرادات: ${isTeacher() ? '$' + fmt(yearSubs().reduce((a,b)=>a+Number(b.paidAmount||0),0)) : '🔒'}</p></div>`;
     if (type === 'revenue') return `<div class="panel"><h3>تقرير الإيرادات</h3>${svgBarChart(chartRevenue(), { valuePrefix: '$' })}</div>`;
     if (type === 'exams') return `<div class="panel"><h3>تقرير الامتحانات</h3>${yearExams().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,8).map(ex=>{ const res = state.examResults.filter(r=>r.examId===ex.id); const avg = res.length ? Math.round(res.reduce((a,b)=>a + (Number(b.score) * 100 / Number(ex.fullMark || 1)),0)/res.length) : 0; return `<p>${esc(ex.name)} — ${avg}%</p>`; }).join('') || '<p class="muted">لا توجد بيانات</p>'}</div>`;
     if (type === 'top') return `<div class="panel"><h3>المتفوقين</h3>${yearStudents().map(s => ({ name:s.name, pct: calcExamStats(s.id).avg })).sort((a,b)=>b.pct-a.pct).slice(0,5).map(r=>`<p>${esc(r.name)} — ${r.pct}%</p>`).join('') || '<p class="muted">لا توجد بيانات</p>'}</div>`;
@@ -1637,11 +1688,11 @@
     if (!g) return '<div class="muted">لا توجد مجموعة.</div>';
     const students = yearStudents(g.academicYearId).filter(s => s.groupId === g.id);
     const revenue = yearSubs(g.academicYearId).filter(s => s.groupId === g.id).reduce((a,b)=>a + Number(b.paidAmount || 0), 0);
-    return `<div class="panel"><h3>تقرير مجموعة</h3><p class="subtle">${esc(g.name)} • ${esc(yearById(g.academicYearId).label || '')}</p><p><strong>عدد الطلاب:</strong> ${students.length}</p><p><strong>الحصص/شهر:</strong> ${g.lessonCount || state.settings.lessonsPerMonth || 4}</p><p><strong>الإيرادات:</strong> $${fmt(revenue)}</p></div>`;
+    return `<div class="panel"><h3>تقرير مجموعة</h3><p class="subtle">${esc(g.name)} • ${esc(yearById(g.academicYearId).label || '')}</p><p><strong>عدد الطلاب:</strong> ${students.length}</p><p><strong>الحصص/شهر:</strong> ${g.lessonCount || state.settings.lessonsPerMonth || 4}</p><p><strong>الإيرادات:</strong> ${isTeacher() ? '$' + fmt(revenue) : '🔒'}</p></div>`;
   }
   function yearReportHtml(yearId) {
     const ys = yearStudents(yearId), yg = yearGroups(yearId), yl = yearLessons(yearId), ye = yearExams(yearId), ysub = yearSubs(yearId);
-    return `<div class="panel"><h3>تقرير سنة دراسية</h3><p class="subtle">${esc(yearById(yearId).label || '')}</p><p><strong>الطلاب:</strong> ${ys.length}</p><p><strong>المجموعات:</strong> ${yg.length}</p><p><strong>الحصص:</strong> ${yl.length} (الافتراضي ${state.settings.lessonsPerMonth || 4} حصص/شهر)</p><p><strong>الامتحانات:</strong> ${ye.length}</p><p><strong>الإيرادات:</strong> $${fmt(ysub.reduce((a,b)=>a + Number(b.paidAmount || 0), 0))}</p></div>`;
+    return `<div class="panel"><h3>تقرير سنة دراسية</h3><p class="subtle">${esc(yearById(yearId).label || '')}</p><p><strong>الطلاب:</strong> ${ys.length}</p><p><strong>المجموعات:</strong> ${yg.length}</p><p><strong>الحصص:</strong> ${yl.length} (الافتراضي ${state.settings.lessonsPerMonth || 4} حصص/شهر)</p><p><strong>الامتحانات:</strong> ${ye.length}</p><p><strong>الإيرادات:</strong> ${isTeacher() ? '$' + fmt(ysub.reduce((a,b)=>a + Number(b.paidAmount || 0), 0)) : '🔒'}</p></div>`;
   }
 
   function studentTabHtml(studentId) {
@@ -1650,7 +1701,7 @@
       <div class="tabs">
         <button class="tab active" onclick="showStudentTab('info')">المعلومات</button>
         <button class="tab" onclick="showStudentTab('attendance')">الحضور</button>
-        <button class="tab" onclick="showStudentTab('subs')">الاشتراكات</button>
+        ${isTeacher() ? `<button class="tab" onclick="showStudentTab('subs')">الاشتراكات</button>` : ''}
         <button class="tab" onclick="showStudentTab('exams')">الامتحانات</button>
         <button class="tab" onclick="showStudentTab('notes')">الملاحظات</button>
         <button class="tab" onclick="showStudentTab('qr')">QR</button>
@@ -1663,12 +1714,12 @@
         <div class="grid-cards" style="margin-top:12px">
           <div class="card"><div class="stat-label">نسبة الحضور</div><div class="stat-value">${a.pct}%</div></div>
           <div class="card"><div class="stat-label">الغياب</div><div class="stat-value">${a.absent}</div></div>
-          <div class="card"><div class="stat-label">المتبقي</div><div class="stat-value">$${fmt(sub.remaining)}</div></div>
+          ${isTeacher() ? `<div class="card"><div class="stat-label">المتبقي</div><div class="stat-value">$${fmt(sub.remaining)}</div></div>` : ''}
           <div class="card"><div class="stat-label">متوسط الامتحانات</div><div class="stat-value">${ex.avg}%</div></div>
         </div>
       </div>
       <div id="studentTab-attendance" class="student-tab" style="display:none">${studentAttendanceHtml(studentId)}</div>
-      <div id="studentTab-subs" class="student-tab" style="display:none">${studentSubsHtml(studentId)}</div>
+      ${isTeacher() ? `<div id="studentTab-subs" class="student-tab" style="display:none">${studentSubsHtml(studentId)}</div>` : ''}
       <div id="studentTab-exams" class="student-tab" style="display:none">${studentExamsHtml(studentId)}</div>
       <div id="studentTab-notes" class="student-tab" style="display:none">${studentNotesHtml(studentId)}</div>
       <div id="studentTab-qr" class="student-tab" style="display:none">${studentQrHtml(studentId)}</div>
@@ -1854,7 +1905,7 @@
           <div class="field"><label>السنة الدراسية</label><select name="academicYearId">${state.academicYears.map(y => `<option value="${y.id}" ${yearId === y.id ? 'selected' : ''}>${esc(y.label)}</option>`).join('')}</select></div>
           <div class="field"><label>اليوم</label><select name="dayOfWeek">${optionsHtml(DAY_OPTIONS, g?.dayOfWeek || "", true, "اختر اليوم")}</select></div>
           <div class="field"><label>الوقت</label><input name="time" type="time" value="${esc(toTimeInputValue(g?.time || ''))}" step="1"></div>
-          <div class="field"><label>الاشتراك الشهري</label><input name="fee" type="number" min="0" value="${esc(g?.fee || state.settings.defaultFee)}"></div>
+          ${isTeacher() ? `<div class="field"><label>الاشتراك الشهري</label><input name="fee" type="number" min="0" value="${esc(g?.fee || state.settings.defaultFee)}"></div>` : ''}
           <div class="field"><label>عدد الحصص بالشهر</label><input name="lessonCount" type="number" min="1" value="${esc(g?.lessonCount || state.settings.lessonsPerMonth || 4)}"></div>
         </div>
         <div class="field" style="margin-top:10px"><label>ملاحظات</label><textarea name="notes">${esc(g?.notes || '')}</textarea></div>
@@ -1868,7 +1919,7 @@
       e.preventDefault();
       const data = Object.fromEntries(new FormData(e.target).entries());
       data.time = fromTimeInputValue(data.time);
-      data.fee = Number(data.fee || 0);
+      if (isTeacher()) data.fee = Number(data.fee || 0); else delete data.fee;
       data.lessonCount = Number(data.lessonCount || state.settings.lessonsPerMonth || 4);
       if (g) Object.assign(g, data);
       else state.groups.push({ id: uid('g'), ...data });
@@ -2019,6 +2070,7 @@
   // actions
   window.setYear = setActiveYear;
   window.openStudent = openStudent;
+  window.openPaymentStatusDialog = openPaymentStatusDialog;
   window.editStudent = id => openStudentForm(id);
   window.deleteStudent = id => {
     if (!confirm('حذف الطالب؟')) return;
@@ -2096,6 +2148,46 @@
       s.status = 'unpaid';
       s.notes = '';
       saveState(); renderAll(); closeModal(); toast('تم إلغاء السداد بالكامل');
+    };
+  }
+  function currentMonthStr() {
+    const n = new Date();
+    return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
+  }
+  function openPaymentStatusDialog(studentId) {
+    const s = studentById(studentId);
+    const month = currentMonthStr();
+    let p = (state.paymentStatus || []).find(x => x.studentId === studentId && x.month === month);
+    if (!p) {
+      p = { id: 'pay' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), studentId, groupId: s.groupId, academicYearId: s.academicYearId, month, status: 'unpaid', paidAt: '', paymentMethod: '' };
+      state.paymentStatus.push(p);
+    }
+    openModal('تسجيل دفعة', `${esc(s.name)} • ${month} — من غير عرض المبلغ`, `
+      <form id="paymentStatusForm" class="panel" style="margin:0">
+        <div class="form-grid">
+          <div class="field"><label>حالة الدفع</label>
+            <select name="status">
+              <option value="paid" ${p.status === 'paid' ? 'selected' : ''}>مدفوع</option>
+              <option value="late" ${p.status === 'late' ? 'selected' : ''}>متأخر</option>
+              <option value="unpaid" ${p.status === 'unpaid' ? 'selected' : ''}>لم يدفع</option>
+            </select>
+          </div>
+          <div class="field"><label>طريقة الدفع</label><select name="paymentMethod">${optionsHtml(PAYMENT_METHOD_OPTIONS, p.paymentMethod || '', true, 'اختر الطريقة')}</select></div>
+          <div class="field"><label>تاريخ الدفع</label><input name="paidAt" type="date" value="${p.paidAt || new Date().toISOString().slice(0,10)}"></div>
+        </div>
+        <div class="controls" style="margin-top:12px">
+          <button class="btn" type="submit">حفظ</button>
+          <button class="btn secondary" type="button" onclick="closeModal()">إغلاق</button>
+        </div>
+      </form>
+    `);
+    $('#paymentStatusForm').onsubmit = e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      p.status = String(fd.get('status') || 'unpaid');
+      p.paymentMethod = String(fd.get('paymentMethod') || '');
+      p.paidAt = String(fd.get('paidAt') || '');
+      saveState(); closeModal(); toast('تم تسجيل حالة الدفع');
     };
   }
   window.markPaid = id => openPaymentDialog(id);
@@ -2178,8 +2270,6 @@
       }
     };
     $('#logoutBtn').onclick = () => signOut(auth);
-    $('#teacherLogoutBtn').onclick = () => signOut(auth);
-    $('#teacherRefreshBtn').onclick = () => loadTeacherTotals();
     $('#testFbBtn').onclick = () => testFirebaseConnection();
     $('#toggleTheme').onclick = () => {
       state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
@@ -2307,7 +2397,16 @@
   function hideAllViews() {
     $('#loginView').style.display = 'none';
     $('#appView').style.display = 'none';
-    $('#teacherView').style.display = 'none';
+  }
+  function applyRoleUI() {
+    const moneyNav = ['subscriptions', 'monthArchive'];
+    $$('#nav button').forEach(btn => {
+      btn.style.display = (!isTeacher() && moneyNav.includes(btn.dataset.page)) ? 'none' : '';
+    });
+    if (!isTeacher() && moneyNav.includes(currentPage)) {
+      currentPage = 'dashboard';
+      $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'dashboard'));
+    }
   }
   onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -2324,20 +2423,16 @@
       currentRole = role;
       const who = `${user.email} — ${ROLE_LABELS[role] || 'صلاحية غير معروفة'}`;
 
-      if (role === 'manager') {
+      if (role === 'manager' || role === 'teacher') {
         $('#loginHint').textContent = 'جاري تحميل بياناتك...';
         await loadStateForUser();
         hideAllViews();
         $('#appView').style.display = 'grid';
         $('#whoAmI').textContent = who;
+        applyRoleUI();
         renderAll();
         autoGenerateMonthlyLessons();
-        toast('مرحبًا بك يا ' + ROLE_LABELS.manager);
-      } else if (role === 'teacher') {
-        hideAllViews();
-        $('#teacherView').style.display = 'grid';
-        $('#teacherWhoAmI').textContent = who;
-        await loadTeacherTotals();
+        toast('مرحبًا بك يا ' + ROLE_LABELS[role]);
       } else {
         toast('حسابك لسه مش متسجل له صلاحية. كلم مدير النظام يضيفك.');
         await signOut(auth);
@@ -2346,27 +2441,13 @@
     } else {
       currentUser = null;
       currentDocRef = null;
+      currentMoneyDocRef = null;
       currentRole = null;
       $('#loginBtn').disabled = false;
       hideAllViews();
       $('#loginView').style.display = 'grid';
     }
   });
-  async function loadTeacherTotals() {
-    const dot = document.getElementById('teacherFbStatus');
-    try {
-      const snap = await getDoc(doc(db, 'system', 'main', 'appData', 'totalMoney'));
-      const total = snap.exists() ? (snap.data().total || 0) : 0;
-      const updatedAt = snap.exists() && snap.data().updatedAt ? new Date(snap.data().updatedAt) : null;
-      $('#teacherTotalMoney').textContent = total.toLocaleString('ar-EG') + ' جنيه';
-      $('#teacherUpdatedAt').textContent = updatedAt ? ('آخر تحديث: ' + updatedAt.toLocaleString('ar-EG')) : '';
-      if (dot) dot.style.color = '#22c55e';
-    } catch (err) {
-      $('#teacherTotalMoney').textContent = '—';
-      $('#teacherUpdatedAt').textContent = 'تعذر التحميل: ' + err.message;
-      if (dot) dot.style.color = '#ef4444';
-    }
-  }
 
   function addNoteAction() {}
   function gradeLabelByScore(pct) {
