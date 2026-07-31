@@ -415,6 +415,7 @@
         <button data-page="students">الطلاب <span>◫</span></button>
         <button data-page="groups">المجموعات <span>◎</span></button>
         <button data-page="lessons">الحصص <span>≣</span></button>
+        <button data-page="scan">مسح QR <span>▣</span></button>
         <button data-page="exams">الامتحانات <span>◌</span></button>
         <button data-page="subscriptions">الاشتراكات <span>₪</span></button>
         <button data-page="monthArchive">أرشيف الشهور <span>⏱</span></button>
@@ -630,6 +631,25 @@
         </div>
       </section>
 
+      <section id="scan" class="section">
+        <div class="hero">
+          <div>
+            <h2>تسجيل حضور بالـ QR</h2>
+            <p>امسح كود أي طالب، والنظام يلاقي مجموعته من مجموعات النهاردة ويسجله حاضر تلقائيًا.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>حصص النهاردة</h3>
+          <div id="todayGroupsList" class="subtle" style="margin:8px 0"></div>
+          <div class="controls" style="margin:10px 0">
+            <button class="btn" id="scanStartBtn">ابدأ المسح</button>
+            <button class="btn secondary" id="scanStopBtn" style="display:none">إيقاف</button>
+          </div>
+          <div id="qrReader" style="max-width:420px"></div>
+          <p class="footer-note">لازم تسمح للمتصفح باستخدام الكاميرا. أفضل نتيجة على الموبايل بكاميرا الخلفية. لو الطالب مجموعته مالهاش حصة النهاردة، هيفتح بروفايله من غير ما يتسجل حضور.</p>
+        </div>
+      </section>
+
       <section id="exams" class="section">
         <div class="hero">
           <div>
@@ -832,6 +852,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <script>
     if (location.protocol === 'file:') {
@@ -1778,7 +1799,79 @@
     $('#modalBody').innerHTML = bodyHtml;
     $('#modalBackdrop').classList.add('show');
   }
-  function closeModal() { $('#modalBackdrop').classList.remove('show'); }
+  function closeModal() {
+    $('#modalBackdrop').classList.remove('show');
+    if (window.__onModalClose) { const fn = window.__onModalClose; window.__onModalClose = null; fn(); }
+  }
+
+  let html5QrCode = null;
+  let scanActive = false;
+  function todayStr() { const n = new Date(); return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0'); }
+  function todaysLessons() { return state.lessons.filter(l => l.date === todayStr()); }
+  function findTodayLessonForGroup(groupId) { return state.lessons.find(l => l.groupId === groupId && l.date === todayStr()); }
+  function renderScanPage() {
+    const list = todaysLessons();
+    const box = $('#todayGroupsList');
+    if (!list.length) {
+      box.textContent = 'مفيش حصص مجدولة النهاردة لأي مجموعة.';
+    } else {
+      box.innerHTML = list.map(l => {
+        const g = groupById(l.groupId);
+        return `<div class="chip" style="margin:4px 6px 4px 0;display:inline-block">${esc(g.name || '')} - ${esc(yearById(g.academicYearId).label || '')} (${esc(l.time || g.time || '')})</div>`;
+      }).join('');
+    }
+    stopScanner();
+  }
+  function startScanner() {
+    if (!todaysLessons().length) return toast('مفيش أي حصة مجدولة النهاردة لسه');
+    if (!window.Html5Qrcode) return toast('مكتبة المسح لسه بتحمل، حاول تاني بعد شوية');
+    html5QrCode = new Html5Qrcode('qrReader');
+    scanActive = true;
+    $('#scanStartBtn').style.display = 'none';
+    $('#scanStopBtn').style.display = '';
+    html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: 250 },
+      decodedText => onScanSuccess(decodedText),
+      () => {}
+    ).catch(err => { toast('تعذر تشغيل الكاميرا: ' + err); stopScanner(); });
+  }
+  function stopScanner() {
+    if (html5QrCode && scanActive) {
+      html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
+    }
+    scanActive = false;
+    $('#scanStartBtn').style.display = '';
+    $('#scanStopBtn').style.display = 'none';
+  }
+  function onScanSuccess(decodedText) {
+    if (!scanActive) return;
+    const m = /^STUDENT:(.+):([^:]+)$/.exec(String(decodedText).trim());
+    const studentId = m ? m[2] : null;
+    const s = studentId ? studentById(studentId) : null;
+    if (!s || !s.id) { toast('كود QR مش معروف'); return; }
+    const lesson = findTodayLessonForGroup(s.groupId);
+    if (!lesson) {
+      toast(`تنبيه: مجموعة ${esc(groupById(s.groupId).name || s.groupId)} مالهاش حصة النهاردة - هيفتح البروفايل من غير تسجيل حضور`);
+    } else {
+      let att = state.attendance.find(a => a.lessonId === lesson.id && a.studentId === s.id);
+      if (!att) {
+        att = { id: uid('a'), lessonId: lesson.id, studentId: s.id, status: 'present', notes: '' };
+        state.attendance.push(att);
+        saveState();
+        toast('تم تسجيل حضور ' + s.name + ' في مجموعة ' + (groupById(s.groupId).name || ''));
+      } else if (att.status !== 'present') {
+        att.status = 'present';
+        saveState();
+        toast('تم تحديث حالة ' + s.name + ' لحاضر');
+      } else {
+        toast(s.name + ' مسجل حاضر بالفعل');
+      }
+    }
+    if (html5QrCode) { try { html5QrCode.pause(true); } catch (e) {} }
+    window.__onModalClose = () => { try { if (html5QrCode && scanActive) html5QrCode.resume(); } catch (e) {} };
+    openStudent(s.id);
+  }
 
   function openStudent(studentId) {
     currentStudentId = studentId;
@@ -2236,6 +2329,7 @@
   window.showPage = showPage;
 
   function showPage(page) {
+    if (currentPage === 'scan' && page !== 'scan') stopScanner();
     currentPage = page;
     $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.page === page));
     $$('.section').forEach(sec => sec.classList.remove('active'));
@@ -2243,6 +2337,7 @@
     if (page === 'reports') renderReports();
     if (page === 'monthArchive') renderMonthArchive();
     if (page === 'dashboard') renderDashboard();
+    if (page === 'scan') renderScanPage();
   }
 
   function bindEvents() {
@@ -2270,6 +2365,8 @@
       }
     };
     $('#logoutBtn').onclick = () => signOut(auth);
+    $('#scanStartBtn').onclick = () => startScanner();
+    $('#scanStopBtn').onclick = () => stopScanner();
     $('#testFbBtn').onclick = () => testFirebaseConnection();
     $('#toggleTheme').onclick = () => {
       state.settings.theme = state.settings.theme === 'dark' ? 'light' : 'dark';
