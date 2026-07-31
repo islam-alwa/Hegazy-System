@@ -7,32 +7,23 @@ service cloud.firestore {
     }
     function isKnownRole() { return myRole() == 'manager' || myRole() == 'teacher'; }
 
-    // Role registry - who is 'manager' (الاسستنت) vs 'teacher' (المستر).
-    // Only editable manually from the Firebase Console (never from the app).
     match /system/main/members/{uid} {
       allow read: if isSignedIn() && request.auth.uid == uid;
       allow write: if false;
     }
 
-    // Core app data (students, groups w/o fee, lessons, attendance, exams, notes,
-    // paymentStatus, settings) - BOTH roles use the full app for this.
     match /system/main/appData/state {
       allow read, write: if isSignedIn() && isKnownRole();
     }
 
-    // Money data (subscriptions with real amounts + group fees) - teacher ONLY.
-    // The assistant's account has zero access to this document, even for reads.
     match /system/main/appData/money {
       allow read, write: if isSignedIn() && myRole() == 'teacher';
     }
 
-    // Connection test doc used by the "اختبار الاتصال" button - either role.
     match /system/main/appData/connectionTest {
       allow read, write: if isSignedIn() && isKnownRole();
     }
 
-    // Legacy per-account docs (from before roles existed) - kept readable by their
-    // own owner only, so the one-time migration in the app can still read them.
     match /users/{uid}/appData/{doc} {
       allow read: if isSignedIn() && request.auth.uid == uid;
       allow write: if false;
